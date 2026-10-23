@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "package": "pdd-toolkit",
+  "version": "0.37.1",
+  "provider": "codex",
+  "scope": "project",
+  "skills": [
+    "pdd-map",
+    "pdd-ideate",
+    "pdd-verify"
+  ],
+  "installedAt": "2026-10-23T15:49:12.042Z",
+  "updatedAt": "2026-10-23T15:49:12.042Z",
+  "orchestrate": "off"
+}

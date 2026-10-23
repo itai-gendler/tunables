@@ -1,0 +1,4 @@
+interface:
+  display_name: "tunables Adopt"
+  short_description: "Move an app's hard-coded values into tunables"
+  default_prompt: "Use $tunables-adopt to inventory this app's limits, intervals, environment overrides and settings code, propose a home for each value, and after I approve, wire tunables in."

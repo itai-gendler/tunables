@@ -1,0 +1,176 @@
+{
+  "name": "tunables",
+  "version": "0.0.0",
+  "description": "Runtime settings with guardrails, for the app you already run: typed, bounded, explained beside what they affect, and recorded in a history.",
+  "keywords": [
+    "settings",
+    "runtime-settings",
+    "configuration",
+    "admin",
+    "guardrails",
+    "postgres",
+    "nuxt",
+    "orpc",
+    "agent-skills",
+    "cli"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "Itai Gendler",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/itai-gendler/tunables.git"
+  },
+  "homepage": "https://tunables.dev",
+  "bugs": {
+    "url": "https://github.com/itai-gendler/tunables/issues"
+  },
+  "packageManager": "pnpm@12.11.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bin": {
+    "tunables": "dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./postgres": {
+      "types": "./dist/postgres.d.ts",
+      "default": "./dist/postgres.js"
+    },
+    "./drizzle": {
+      "types": "./dist/drizzle.d.ts",
+      "default": "./dist/drizzle.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    },
+    "./express": {
+      "types": "./dist/express.d.ts",
+      "default": "./dist/express.js"
+    },
+    "./orpc": {
+      "types": "./dist/orpc.d.ts",
+      "default": "./dist/orpc.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "default": "./dist/vue.js"
+    },
+    "./pdd": {
+      "types": "./dist/pdd.d.ts",
+      "default": "./dist/pdd.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./nuxt": "./layers/nuxt/tunables/nuxt.config.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "CHANGELOG.md",
+    "dist",
+    "docs",
+    "!docs/images",
+    "layers",
+    "!layers/**/node_modules",
+    "!layers/**/.nuxt",
+    "skills"
+  ],
+  "scripts": {
+    "build": "tsdown",
+    "dev": "node scripts/dev.mjs",
+    "dev:unlink": "node scripts/dev.mjs --unlink",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "db:test": "node scripts/test-database.mjs",
+    "package:size": "node scripts/check-package-size.mjs",
+    "check": "node scripts/check-repo.mjs",
+    "changelog:release": "node scripts/changelog-release.mjs",
+    "check:consumer": "node scripts/check-nuxt-consumer.mjs",
+    "verify": "pnpm typecheck && pnpm build && pnpm package:size && pnpm test && pnpm check",
+    "version": "node scripts/sync-version.mjs",
+    "prepack": "pnpm build"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.8.1",
+    "commander": "^15.0.0",
+    "jiti": "^2.7.0",
+    "zod": "^4.6.7"
+  },
+  "peerDependencies": {
+    "@nuxt/ui": "^4.9.0",
+    "@orpc/client": "^1.15.0",
+    "@orpc/server": "^1.15.0",
+    "drizzle-orm": ">=0.36.0",
+    "express": "^4.21.0 || ^5.0.0",
+    "nuxt": "^4.4.0",
+    "pg": "^8.13.0",
+    "postgres": "^3.4.0",
+    "vue": "^3.5.0"
+  },
+  "peerDependenciesMeta": {
+    "@nuxt/ui": {
+      "optional": true
+    },
+    "@orpc/client": {
+      "optional": true
+    },
+    "@orpc/server": {
+      "optional": true
+    },
+    "drizzle-orm": {
+      "optional": true
+    },
+    "express": {
+      "optional": true
+    },
+    "nuxt": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "postgres": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@orpc/client": "^1.16.1",
+    "@orpc/server": "^1.16.1",
+    "@playwright/test": "1.64.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.5",
+    "@types/pg": "^8.23.1",
+    "drizzle-orm": "^0.45.4",
+    "express": "^5.3.0",
+    "lefthook": "^2.2.1",
+    "pg": "^8.23.1",
+    "postgres": "^3.4.9",
+    "tsdown": "^0.23.1",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.4",
+    "vue": "^3.5.44",
+    "yaml": "^2.9.1"
+  }
+}

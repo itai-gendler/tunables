@@ -1,0 +1,49 @@
+#!/usr/bin/env node
+
+import { readdir, stat } from 'node:fs/promises'
+import { execSync } from 'node:child_process'
+import { resolve } from 'node:path'
+
+const root = process.cwd()
+
+async function bytes(path) {
+  const entry = await stat(path)
+  if (entry.isFile()) return entry.size
+  const children = await readdir(path, { withFileTypes: true })
+  return (await Promise.all(children.map(child => bytes(resolve(path, child.name)))))
+    .reduce((total, size) => total + size, 0)
+}
+
+const budgets = [
+  // The library, its adapters and the CLI, with their type declarations.
+  { path: 'dist', label: 'built library and CLI', maximum: 1024 * 1024 },
+  // The embeddable screens ship as source; they bring no theme or assets.
+  { path: 'layers/nuxt', label: 'Nuxt Layer source', maximum: 256 * 1024 }
+]
+
+let failed = false
+for (const budget of budgets) {
+  const size = await bytes(resolve(root, budget.path))
+  const kibibytes = Math.ceil(size / 1024)
+  const maximumKibibytes = budget.maximum / 1024
+  console.log(`${budget.label}: ${kibibytes} KiB / ${maximumKibibytes} KiB`)
+  if (size > budget.maximum) {
+    console.error(`error: ${budget.label} exceeds its ${maximumKibibytes} KiB budget`)
+    failed = true
+  }
+}
+
+// Check the compressed artifact here as well as in Publish. `pnpm pack` cannot
+// skip the prepack build this check runs after, so npm, which ships with Node,
+// measures the same file set here.
+const maximumTarballBytes = 512 * 1024
+const tarballBytes = process.argv[2]
+  ? (await stat(resolve(process.argv[2]))).size
+  : JSON.parse(execSync('npm pack --dry-run --ignore-scripts --json', { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }))[0].size
+console.log(`package tarball: ${Math.ceil(tarballBytes / 1024)} KiB / ${maximumTarballBytes / 1024} KiB`)
+if (tarballBytes > maximumTarballBytes) {
+  console.error('error: package tarball exceeds its compressed size budget')
+  failed = true
+}
+
+if (failed) process.exit(1)

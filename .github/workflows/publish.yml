@@ -1,0 +1,151 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.repository == 'itai-gendler/tunables' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    # The npm environment admits only v* tags, and the trusted publisher on
+    # npmjs.com names it, so no other ref can mint a publishing token.
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      # The repository's pinned pnpm, from package.json's packageManager. It
+      # also serves the pnpm consumer smoke test below.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      # npm publishes the packed tarball through trusted publishing (OIDC) and
+      # stands in for npm consumers in the smoke test.
+      - name: Use OIDC-capable npm
+        run: npm install --global npm@11.9.0
+
+      - name: Verify release tag
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          if [[ "$GITHUB_REF_NAME" != "v${package_version}" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match package version ${package_version}." >&2
+            exit 1
+          fi
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm verify
+
+      - name: Pack release artifact
+        id: pack
+        shell: bash
+        run: |
+          pack_dir="$(mktemp -d)"
+          package_version="$(node --print "require('./package.json').version")"
+          pnpm pack --pack-destination "$pack_dir"
+          tarball="$pack_dir/tunables-${package_version}.tgz"
+          test -f "$tarball"
+          node scripts/check-package-size.mjs "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke-test release artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="${{ steps.pack.outputs.tarball }}"
+          smoke_root="$(mktemp -d)"
+
+          # The command runs from the tarball, as `npx tunables` would.
+          npx --yes --package "$tarball" tunables --version
+          npx --yes --package "$tarball" tunables --help | grep 'Runtime settings with guardrails' >/dev/null
+
+          # Skills install with their ownership marker.
+          mkdir -p "$smoke_root/project/.claude" "$smoke_root/project/.agents"
+          (cd "$smoke_root/project" && npx --yes --package "$tarball" tunables install --providers claude,codex --scope project --yes)
+          for skills_root in "$smoke_root/project/.claude/skills" "$smoke_root/project/.agents/skills"; do
+            test -f "$skills_root/.tunables-install.json"
+            for skill in tunables-adopt tunables-define tunables-verify; do
+              test -f "$skills_root/$skill/SKILL.md"
+            done
+          done
+
+          # A CLI-only install pulls no framework, and the core and its
+          # framework-free subpaths load without one.
+          cli_only="$smoke_root/cli-only"
+          mkdir -p "$cli_only"
+          (cd "$cli_only" && npm init -y >/dev/null && npm install --omit=peer "$tarball")
+          for peer in vue nuxt @nuxt/ui @orpc/server express pg postgres drizzle-orm; do
+            if test -e "$cli_only/node_modules/$peer"; then echo "$peer was installed with the CLI." >&2; exit 1; fi
+          done
+          node "$cli_only/node_modules/tunables/dist/cli.js" --version
+          (cd "$cli_only" && node --input-type=module -e "
+            const core = await import('tunables')
+            const server = await import('tunables/server')
+            const client = await import('tunables/client')
+            const pdd = await import('tunables/pdd')
+            const testing = await import('tunables/testing')
+            if (typeof core.createTunables !== 'function' || typeof server.createHandler !== 'function' || typeof client.fetchClient !== 'function' || typeof pdd.readModelFacts !== 'function' || typeof testing.testTunables !== 'function') process.exit(1)
+            const tunables = await testing.testTunables({ groups: [core.defineGroup({ id: 'a', title: 'A', fields: { n: core.number({ unit: 'count', default: 2 }) } })] })
+            if ((await tunables.get('a')).n !== 2) process.exit(1)
+          ")
+
+          # The packaged files are what the exports name.
+          tar -tzf "$tarball" | grep '^package/layers/nuxt/tunables/nuxt.config.ts$' >/dev/null
+          tar -tzf "$tarball" | grep '^package/skills/tunables-define/SKILL.md$' >/dev/null
+          if tar -tzf "$tarball" | grep -E '^package/(playground|site|fixture|test)/' >/dev/null; then
+            echo 'The playground, site, fixture and tests must not be packaged.' >&2
+            exit 1
+          fi
+
+          # The Nuxt layer installs and typechecks in a consumer.
+          node scripts/check-nuxt-consumer.mjs "$tarball"
+
+      - name: Publish to npm
+        shell: bash
+        run: |
+          package_version="$(node --print "require('./package.json').version")"
+          if npm view "tunables@${package_version}" version >/dev/null 2>&1; then
+            echo "tunables@${package_version} is already published; skipping."
+            exit 0
+          fi
+          npm publish "${{ steps.pack.outputs.tarball }}"
+
+  # Watching a repository's releases notifies on Releases, never on bare tags,
+  # so each version gets one once npm can install it, its notes taken from
+  # CHANGELOG.md. A separate job keeps write access out of the npm publisher.
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Create GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; skipping."
+            exit 0
+          fi
+          node scripts/release-notes.mjs "${TAG#v}" > "$RUNNER_TEMP/release-notes.md"
+          gh release create "$TAG" --verify-tag --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" --latest

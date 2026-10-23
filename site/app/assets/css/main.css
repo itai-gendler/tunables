@@ -1,0 +1,182 @@
+/*
+  The tunables.dev foundation: one palette, one type stack, light and dark.
+
+  The site is a sibling of pdd-kit.dev, not a copy of it. Where pdd-kit is warm
+  paper and brass, tunables is a control panel: cool ink neutrals, one teal
+  accent for what can be turned, and amber kept for what costs something. See
+  docs/brand.md before changing a token here.
+*/
+@import "tailwindcss" theme(static);
+@import "@nuxt/ui";
+
+@theme static {
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Ink: a cool slate with a trace of green, so the teal accent sits in it
+    rather than on it. */
+  --color-ink-50: #f6f8f8;
+  --color-ink-100: #eceff0;
+  --color-ink-200: #d9dfe1;
+  --color-ink-300: #b9c3c6;
+  --color-ink-400: #8d9a9f;
+  --color-ink-500: #66757b;
+  --color-ink-600: #4f5d63;
+  --color-ink-700: #3e4a50;
+  --color-ink-800: #2a3439;
+  --color-ink-900: #182025;
+  --color-ink-950: #0d1316;
+}
+
+:root {
+  --site-font-heading: "Archivo Variable", "Inter Variable", sans-serif;
+
+  --ui-bg: var(--color-ink-50);
+  --ui-bg-muted: #eef2f2;
+  --ui-bg-elevated: #ffffff;
+  --ui-bg-accented: var(--color-ink-100);
+  --ui-border: var(--color-ink-200);
+  --ui-border-muted: var(--color-ink-100);
+  --ui-border-accented: var(--color-ink-300);
+  /* Nuxt UI's dimmed and muted steps fail AA on this ground; both take ink-600. */
+  --ui-text-dimmed: var(--color-ink-600);
+  --ui-text-muted: var(--color-ink-600);
+  --ui-primary: var(--ui-color-primary-700);
+  --ui-secondary: var(--ui-color-secondary-700);
+  --ui-success: var(--ui-color-success-700);
+  --ui-warning: var(--ui-color-warning-700);
+  --ui-error: var(--ui-color-error-700);
+
+  /* The panel grid the hero and section grounds are drawn on. */
+  --site-grid-line: color-mix(in srgb, var(--color-ink-300) 38%, transparent);
+  color-scheme: light;
+  scrollbar-color: var(--ui-border-accented) var(--ui-bg);
+}
+
+.dark {
+  --ui-bg: var(--color-ink-950);
+  --ui-bg-muted: #121a1e;
+  --ui-bg-elevated: #141c20;
+  --ui-bg-accented: #1e282d;
+  --ui-border: #26323a;
+  --ui-border-muted: #1c262c;
+  --ui-border-accented: #34434b;
+  --ui-text-dimmed: var(--color-ink-400);
+  --ui-text-muted: var(--color-ink-400);
+  --ui-primary: var(--ui-color-primary-400);
+  --ui-secondary: var(--ui-color-secondary-400);
+  --ui-success: var(--ui-color-success-400);
+  --ui-warning: var(--ui-color-warning-400);
+  --ui-error: var(--ui-color-error-400);
+
+  --site-grid-line: color-mix(in srgb, var(--color-ink-700) 45%, transparent);
+  color-scheme: dark;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--site-font-heading);
+  }
+
+  body {
+    background-color: var(--ui-bg);
+  }
+
+  * {
+    scrollbar-width: thin;
+  }
+}
+
+::selection {
+  background: color-mix(in srgb, var(--ui-color-primary-500) 28%, transparent);
+}
+
+/*
+  An interactive control takes the hand. Nuxt UI marks button-like elements
+  `cursor-default`; this block is unlayered, so it beats every layer, and
+  `:where()` keeps it at zero specificity so a component can still opt out.
+*/
+:where(button, summary, [role='button'], [role='option'], [role='tab'], [role='menuitem'], [role='switch'], [role='checkbox'], [role='radio']):not(:disabled):not([aria-disabled='true']) {
+  cursor: pointer;
+}
+
+:where(button, [role='button'])[disabled],
+:where(button, [role='button'])[aria-disabled='true'] {
+  cursor: not-allowed;
+}
+
+/* The faint panel grid behind the hero: a control surface, not decoration for
+  its own sake. It fades out downward so body copy never sits on it. */
+.site-grid {
+  background-image:
+    linear-gradient(to right, var(--site-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--site-grid-line) 1px, transparent 1px);
+  background-size: 2rem 2rem;
+  mask-image: linear-gradient(to bottom, #000 0%, #000 55%, transparent 100%);
+}
+
+/* One table treatment for authored Markdown. */
+.content-table-frame {
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--ui-border);
+  border-radius: var(--radius-lg);
+  background: var(--ui-bg-elevated);
+}
+
+.content-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: var(--text-sm);
+  line-height: 1.5rem;
+  color: var(--ui-text);
+}
+
+.content-table > thead {
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-bg-muted);
+  color: var(--ui-text-highlighted);
+}
+
+.content-table > tbody > tr + tr {
+  border-top: 1px solid var(--ui-border);
+}
+
+.content-table > :is(thead, tbody) > tr > :is(th, td) {
+  border: 0;
+  border-radius: 0;
+  padding: 0.5rem 0.875rem;
+  vertical-align: top;
+  line-height: 1.5rem;
+}
+
+.content-table > thead > tr > th {
+  font-weight: 600;
+}
+
+/* A first entrance for the first screen: CSS keyframes, so the heading paints
+  with the first frame rather than after hydration, and reduced motion turns
+  it off in CSS, which the server could never know about. */
+.site-enter {
+  animation: site-enter 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--site-enter-delay, 0s);
+}
+
+@keyframes site-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-enter {
+    animation: none;
+  }
+}

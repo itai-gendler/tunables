@@ -1,0 +1,4 @@
+interface:
+  display_name: "tunables Verify"
+  short_description: "Audit settings against tunables' rules and fix what you choose"
+  default_prompt: "Use $tunables-verify to run tunables check, search this app for values in two homes, bypassed reads and writes, unguarded limits and open routes, report every finding, and fix the ones I choose."

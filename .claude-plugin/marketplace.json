@@ -1,0 +1,23 @@
+{
+  "name": "tunables",
+  "owner": {
+    "name": "Itai Gendler",
+    "url": "https://github.com/itai-gendler"
+  },
+  "metadata": {
+    "description": "Runtime settings with guardrails for the app you already run: adopt, define and verify tunable values with coding agents."
+  },
+  "plugins": [
+    {
+      "name": "tunables",
+      "source": "./",
+      "description": "Skills to adopt tunables in an app, define settings with their guards and explanations, and verify that every tunable value has one home.",
+      "category": "engineering",
+      "keywords": [
+        "settings",
+        "configuration",
+        "guardrails"
+      ]
+    }
+  ]
+}

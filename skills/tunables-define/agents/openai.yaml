@@ -1,0 +1,4 @@
+interface:
+  display_name: "tunables Define"
+  short_description: "Add, change, rename or remove one setting"
+  default_prompt: "Use $tunables-define to add or change this setting: decide where it belongs, its kind, unit, default, bounds and checks, and update the reads, stored values and tests."

@@ -1,0 +1,31 @@
+name: Bug report
+description: Report a defect in the library, the screens, the CLI or a skill
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: Expected and actual behavior. Do not include credentials or private repository URLs.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Minimal steps to reproduce the behavior.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: tunables version and harness
+      description: The tunables version you ran and the AI harness (Claude Code, Codex, Cursor, ...)
+    validations:
+      required: true
+  - type: textarea
+    id: lint-output
+    attributes:
+      label: Lint output (optional)
+      description: Output of `npx tunables lint` if relevant. Redact anything private.
+      render: shell

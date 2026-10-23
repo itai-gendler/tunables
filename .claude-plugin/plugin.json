@@ -1,0 +1,22 @@
+{
+  "name": "tunables",
+  "version": "0.0.0",
+  "description": "Runtime settings with guardrails: adopt tunables in an app, define settings the right way, and verify that no tunable value is hard-coded or kept in two places.",
+  "author": {
+    "name": "Itai Gendler",
+    "url": "https://github.com/itai-gendler"
+  },
+  "homepage": "https://tunables.dev",
+  "repository": "https://github.com/itai-gendler/tunables",
+  "keywords": [
+    "settings",
+    "runtime-settings",
+    "configuration",
+    "guardrails"
+  ],
+  "skills": [
+    "./skills/tunables-adopt",
+    "./skills/tunables-define",
+    "./skills/tunables-verify"
+  ]
+}

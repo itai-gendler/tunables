@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+dist/
+.tmp-*/
+.nuxt/
+.output/
+.data/
+playwright-report/
+test-results/

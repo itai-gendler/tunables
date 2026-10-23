@@ -1,0 +1,16 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+@source "../../../../layers/nuxt/tunables/app";
+
+/*
+ * The host's theme decides contrast. Teal at 500 is too light for white text
+ * and for links on white, so this host uses darker steps for its primary.
+ */
+:root {
+  --ui-primary: var(--ui-color-primary-700);
+}
+
+.dark {
+  --ui-primary: var(--ui-color-primary-300);
+}

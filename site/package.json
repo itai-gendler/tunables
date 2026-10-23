@@ -1,0 +1,52 @@
+{
+  "name": "@tunables/site",
+  "private": true,
+  "type": "module",
+  "description": "The tunables.dev site: the home page, the docs and the changelog, generated as static files.",
+  "scripts": {
+    "dev": "nuxt dev --host 0.0.0.0",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "editorconfig": "EC_VERSION=v3.11.3 editorconfig-checker",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "pnpm typecheck:nuxt && pnpm typecheck:tooling",
+    "typecheck:nuxt": "TUNABLES_SITE_BUILD_DIR=.nuxt-typecheck nuxt prepare && vue-tsc -b tsconfig.typecheck.json --noEmit",
+    "typecheck:tooling": "tsc -p tsconfig.tooling.json --noEmit",
+    "knip": "knip",
+    "test": "pnpm test:integration && pnpm test:e2e",
+    "test:integration": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:report": "playwright show-report"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/inter": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@iconify-json/lucide": "^1.2.147",
+    "@nuxt/content": "3.16.2",
+    "@nuxt/ui": "^4.12.0",
+    "nuxt": "4.4.8",
+    "tailwindcss": "^4.3.3",
+    "vue": "^3.5.44"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@iconify-json/simple-icons": "^1.2.100",
+    "@nuxt/eslint": "^1.17.0",
+    "@playwright/test": "1.64.0",
+    "@types/node": "^22.20.5",
+    "editorconfig-checker": "^7.0.0",
+    "eslint": "^10.12.0",
+    "knip": "^6.41.0",
+    "serve": "^14.2.6",
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.13"
+  }
+}
