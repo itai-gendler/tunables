@@ -41,7 +41,7 @@ export class TunablesMissing extends TunablesError {
 /** Stored values that no longer pass their checks. */
 export class TunablesInvalid extends TunablesError {
   constructor(readonly group: string, readonly problems: readonly Problem[]) {
-    super(`The stored ${group} settings do not hold: ${problems.map(problem => problem.message).join(' ')}`)
+    super(`The stored ${group} settings do not hold: ${problems.map(problem => problem.message).join(' ')} Correct them with \`tunables set ${group} key=value\`, or restore an earlier revision.`)
     this.name = 'TunablesInvalid'
   }
 }
@@ -163,6 +163,15 @@ function diff(previous: Record<string, unknown>, next: Record<string, unknown>, 
 
 const refused = <T>(problems: Problem[]): Outcome<T> => ({ saved: false, problems })
 
+/** A rule over values that may be partly invalid must not fail the save; it answers nothing then. */
+function safely(rule: () => Problem[]): Problem[] {
+  try {
+    return rule()
+  } catch {
+    return []
+  }
+}
+
 function prefixed(prefix: string, problems: Problem[]): Problem[] {
   return problems.map(problem => ({ message: `${prefix}: ${problem.message}` }))
 }
@@ -210,6 +219,21 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
     }
     for (const set of presetSets.values()) {
       if (set.slots.length === 0) throw new TunablesError(`${set.id} has no slots.`)
+    }
+    // Seeds are stored as they are, so they must hold too. Rule `values-stay-within-their-kind`.
+    const seedProblem = (where: string, fields: Fields, values: Record<string, unknown>) => {
+      const unpicked = Object.fromEntries(Object.entries(fields).filter(([, field]) => field.kind !== 'pick'))
+      const [problem] = checkFields(unpicked, values)
+      if (problem) throw new TunablesError(`${where}'s seed does not hold: ${problem.message}`)
+    }
+    for (const set of presetSets.values()) {
+      for (const seed of set.seed ?? []) {
+        if (!set.slots.includes(seed.slot)) throw new TunablesError(`${set.id} seeds "${seed.key}" into "${seed.slot}", which is not one of its slots.`)
+        seedProblem(`${set.id}.${seed.key}`, set.fields, { ...defaultsOf(set.fields), ...seed.values })
+      }
+    }
+    for (const catalog of catalogs.values()) {
+      for (const seed of catalog.seed ?? []) seedProblem(`${catalog.id}.${seed.id}`, catalog.fields, { ...defaultsOf(catalog.fields), ...seed.values })
     }
   }
 
@@ -354,15 +378,26 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
 
   function api(run: Runner, plain: StoreSession, scoped: boolean) {
     type Announce = (group: string, values: Record<string, unknown>) => void
-    /** Run `work` as one change; what it announces reaches listeners once it has committed. */
-    async function commit<T>(work: (session: StoreSession, announce: Announce) => Promise<T>): Promise<T> {
-      const announced: [string, Record<string, unknown>][] = []
-      const result = await run(session => work(session, (group, values) => announced.push([group, values])))
+    // Inside a host transaction tunables cannot know when it commits, so what a
+    // change announces waits until the host calls `committed()`.
+    const pending: [string, Record<string, unknown>][] = []
+    function announceAll(announced: [string, Record<string, unknown>][]) {
       for (const [group, values] of announced) {
         lastGood.set(group, values)
         for (const listener of listeners.get(group) ?? []) listener(values)
       }
+    }
+    /** Run `work` as one change; what it announces reaches listeners once it has committed. */
+    async function commit<T>(work: (session: StoreSession, announce: Announce) => Promise<T>): Promise<T> {
+      const announced: [string, Record<string, unknown>][] = []
+      const result = await run(session => work(session, (group, values) => announced.push([group, values])))
+      if (scoped) pending.push(...announced)
+      else announceAll(announced)
       return result
+    }
+    /** Inside a host transaction: tell listeners about its changes once the host has committed it. */
+    function committed() {
+      announceAll(pending.splice(0))
     }
 
     async function get<Id extends G[number]['id']>(id: Id, readOptions: { lastGood?: boolean } = {}): Promise<GroupValues<GroupOf<G, Id>>> {
@@ -415,23 +450,22 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
         if (strange.length) return refused([{ message: `${group.title} has no ${strange.map(key => `"${key}"`).join(', ')}.` }])
         const next = { ...previous, ...structuredClone(input) }
 
+        // Every problem is found before refusing, so one answer names them all.
         // Rule `values-stay-within-their-kind`.
-        const fieldProblems = checkFields(group.fields, next)
-        if (fieldProblems.length) return refused(fieldProblems)
-        const pickProblems = await checkPicks(session, group.fields, next, previous)
-        if (pickProblems.length) return refused(pickProblems)
+        const fieldProblems = [...checkFields(group.fields, next), ...await checkPicks(session, group.fields, next, previous)]
+        const invalid = new Set(fieldProblems.map(problem => problem.key))
+        const sound = Object.fromEntries(Object.entries(next).map(([key, value]) => [key, invalid.has(key) ? previous[key] : value]))
         // Rule `settings-that-bound-one-another-agree`.
-        const ruleProblems = toProblems(group.rules?.(next as never))
-        if (ruleProblems.length) return refused(ruleProblems)
+        const ruleProblems = safely(() => toProblems(group.rules?.(sound as never)))
+        if (fieldProblems.length || ruleProblems.length) return refused([...fieldProblems, ...ruleProblems])
 
         const view = await settingsView(session, { group: id, values: next })
         // Rules `a-limit-is-never-lowered-below-what-uses-it` and `presets-stay-within-the-settings`.
-        const outside = await presetsOutside(session, view)
-        if (outside.length) return refused(outside)
+        const dependents = await presetsOutside(session, view)
         for (const guard of (options.guards as Record<string, readonly Guard[] | undefined> | undefined)?.[id] ?? []) {
-          const problems = toProblems(await guard({ group: id, next, previous, session, host: change.host }))
-          if (problems.length) return refused(problems)
+          dependents.push(...toProblems(await guard({ group: id, next, previous, session, host: change.host })))
         }
+        if (dependents.length) return refused(dependents)
 
         const changes = diff(previous, next, Object.keys(group.fields))
         if (!changes.length && row) return { saved: true, problems: [] }
@@ -490,7 +524,7 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
     }
 
     async function sync(change: ChangeOptions = {}): Promise<SyncReport> {
-      const by = actorName(change.actor ?? 'tunables sync')
+      const by = actorName(change.actor)
       return commit(async (session) => {
         await session.lock('exclusive')
         const report: SyncReport = { seeded: [], added: [], unknown: [], presets: [], catalog: [] }
@@ -528,6 +562,17 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
 
         for (const set of presetSets.values()) {
           const presets = await listPresets(session, set.id)
+          // A field newly declared on a preset set is added to every stored preset with its default.
+          const setDefaults = defaultsOf(set.fields)
+          for (const preset of presets) {
+            const missing = Object.keys(set.fields).filter(key => !(key in preset.values))
+            if (!missing.length) continue
+            const added = Object.fromEntries(missing.map(key => [key, setDefaults[key]]))
+            const data = { slot: preset.slot, label: preset.label, isDefault: preset.isDefault, values: { ...preset.values, ...added } }
+            await session.putRecord({ collection: presetCollection(set.id), id: preset.key, data })
+            await session.appendRevision({ target: { kind: 'preset', name: set.id, id: preset.key }, actor: by, reason: 'Added new fields with their defaults.', changes: diff({}, added, missing), snapshot: data })
+            for (const key of missing) report.added.push({ group: `${set.id}:${preset.key}`, key })
+          }
           for (const slot of set.slots) {
             if (presets.some(preset => preset.slot === slot && preset.isDefault)) continue
             const seeds = set.seed?.filter(seed => seed.slot === slot) ?? []
@@ -628,7 +673,11 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
           // Rule `the-default-preset-cannot-be-removed`.
           if (current.isDefault) return refused([{ message: `"${current.label}" is the default ${set.singular} for ${current.slot}; make another the default first.` }])
           const assigned = await session.listAssignments(collection, { recordId: key })
-          for (const assignment of assigned) await session.deleteAssignment(collection, assignment.subject, assignment.slot)
+          for (const assignment of assigned) {
+            await session.deleteAssignment(collection, assignment.subject, assignment.slot)
+            // Rule `every-change-is-one-revision`: each subject returned to the default has its own.
+            await session.appendRevision({ target: { kind: 'assignment', name: id, id: assignment.subject }, actor: actorName(change.actor), reason: `"${current.label}" was removed; following the default again.`, changes: [{ key: assignment.slot, from: key, to: null }], snapshot: { slot: assignment.slot, key: null } })
+          }
           await session.deleteRecord(collection, key)
           const reason = [change.reason, assigned.length ? `${assigned.length} assigned returned to the default.` : undefined].filter(Boolean).join(' ') || null
           const revision = await session.appendRevision({ target: { kind: 'preset', name: id, id: key }, actor: actorName(change.actor), reason, changes: [{ key: 'removed', from: current.label, to: null }], snapshot: null })
@@ -644,7 +693,9 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
           if (!chosen) return refused([{ message: `There is no ${set.singular} "${key}".` }])
           if (chosen.isDefault) return { saved: true, problems: [] }
           for (const preset of all.filter(item => item.slot === chosen.slot && item.isDefault)) {
-            await session.putRecord({ collection, id: preset.key, data: { slot: preset.slot, label: preset.label, isDefault: false, values: preset.values } })
+            const data = { slot: preset.slot, label: preset.label, isDefault: false, values: preset.values }
+            await session.putRecord({ collection, id: preset.key, data })
+            await session.appendRevision({ target: { kind: 'preset', name: id, id: preset.key }, actor: actorName(change.actor), reason: `"${chosen.label}" became the default for ${chosen.slot}.`, changes: [{ key: 'default', from: true, to: false }], snapshot: data })
           }
           await session.putRecord({ collection, id: key, data: { slot: chosen.slot, label: chosen.label, isDefault: true, values: chosen.values } })
           const revision = await session.appendRevision({ target: { kind: 'preset', name: id, id: key }, actor: actorName(change.actor), reason: change.reason ?? null, changes: [{ key: 'default', from: false, to: true }], snapshot: { ...chosen, isDefault: true } })
@@ -808,7 +859,7 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
       }
     }
 
-    return { get, entry, overview, save, reset, history, restore, hold, sync, presets, catalog }
+    return { get, entry, overview, save, reset, history, restore, hold, committed, sync, presets, catalog }
   }
 
   const root = api(work => store.transaction(work), store, false)
@@ -819,7 +870,11 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
     describe(): Description {
       return describe({ groups: [...groups.values()], presets: [...presetSets.values()], catalogs: [...catalogs.values()], effects }, options.explanations, unitOf)
     },
-    /** The same API inside a transaction the host app has open: reads see its writes, and changes commit with it. */
+    /**
+     * The same API inside a transaction the host app has open: reads see its
+     * writes, and changes commit with it. Call `committed()` after the host
+     * commits, so listeners hear the changes; after a rollback, don't.
+     */
     within(host: unknown) {
       if (!store.within) throw new TunablesError('This store cannot join a host transaction.')
       const session = store.within(host)

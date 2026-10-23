@@ -12,6 +12,6 @@ references:
 # History
 
 The revisions of one settings group, preset, catalog entry or subject's
-assignments, newest first: who, when, why, and each value before and after,
+assignments, opened from where that thing is edited, newest first: who, when, why, and each value before and after,
 with older changes on request. For a settings group, any earlier revision can be
 restored with a reason.

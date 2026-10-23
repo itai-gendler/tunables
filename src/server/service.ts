@@ -81,32 +81,53 @@ export function createService<Context>(options: ServiceOptions<Context>) {
   }
 
   // Rule `only-whom-the-host-allows-reads-or-changes-tunables`.
+  const refuse = (signedIn: boolean) => options.refusal === 'forbidden'
+    ? new ServiceError(signedIn ? 403 : 401, signedIn ? 'You may not do this.' : 'Sign in first.')
+    : new ServiceError(404, 'Not found.')
+
+  async function permitted(context: Context, action: Action, target: AccessTarget): Promise<Actor | undefined> {
+    const actor = await options.actor(context)
+    if (actor === undefined) return undefined
+    return (options.authorize ? await options.authorize(context, { action, target, actor }) : false) ? actor : undefined
+  }
+
+  // Access is asked before anything else is looked at, so a refusal says nothing
+  // about what exists or what a request should have held.
   async function allow(context: Context, action: Action, target: AccessTarget): Promise<{ actor: Actor, change: Pick<ChangeOptions, 'actor' | 'host'> }> {
     const actor = await options.actor(context)
-    if (actor === undefined) throw new ServiceError(options.refusal === 'forbidden' ? 401 : 404, options.refusal === 'forbidden' ? 'Sign in first.' : 'Not found.')
+    if (actor === undefined) throw refuse(false)
     const allowed = options.authorize ? await options.authorize(context, { action, target, actor }) : false
-    if (!allowed) throw options.refusal === 'forbidden' ? new ServiceError(403, 'You may not do this.') : new ServiceError(404, 'Not found.')
+    if (!allowed) throw refuse(true)
     if (target.id !== undefined && target.kind !== 'description' && target.kind !== 'history' && !exists[target.kind](target.id)) {
       throw new ServiceError(404, `No ${target.kind === 'presets' ? 'preset set' : target.kind} "${target.id}".`)
     }
     return { actor, change: { actor, host: options.host?.(context) } }
   }
 
-  const historyTarget = (target: RevisionTarget): AccessTarget => {
-    const kind = target.kind === 'group' ? 'group' : target.kind === 'catalog' ? 'catalog' : 'presets'
-    if (!exists[kind](target.name)) throw new ServiceError(404, `No ${kind === 'presets' ? 'preset set' : kind} "${target.name}".`)
-    return { kind, id: target.name }
+  /** Whether this context may use tunables at all: it may read the description. Asked before answering a malformed request. */
+  async function admits(context: Context): Promise<void> {
+    const actor = await options.actor(context)
+    if (actor === undefined) throw refuse(false)
+    if (!(options.authorize ? await options.authorize(context, { action: 'read', target: { kind: 'description' }, actor }) : false)) throw refuse(true)
   }
 
+  const historyTarget = (target: RevisionTarget): AccessTarget => ({
+    kind: target.kind === 'group' ? 'group' : target.kind === 'catalog' ? 'catalog' : 'presets',
+    id: target.name
+  })
+
   return {
+    admits,
     async describe(context: Context) {
       await allow(context, 'read', { kind: 'description' })
       return tunables.describe()
     },
     async overview(context: Context) {
-      const { change } = await allow(context, 'read', { kind: 'group' })
       const entries = []
-      for (const group of definitions.groups) entries.push(await tunables.entry(group.id, { host: change.host }))
+      for (const group of definitions.groups) {
+        if (await permitted(context, 'read', { kind: 'group', id: group.id })) entries.push(await tunables.entry(group.id, { host: options.host?.(context) }))
+      }
+      if (!entries.length) throw refuse(Boolean(await options.actor(context)))
       return entries
     },
     async group(context: Context, id: string) {
@@ -114,22 +135,24 @@ export function createService<Context>(options: ServiceOptions<Context>) {
       return tunables.entry(id, { host: change.host })
     },
     async save(context: Context, id: string, body: unknown) {
-      const input = parse(inputs.save, body)
       const { change } = await allow(context, 'change', { kind: 'group', id })
+      const input = parse(inputs.save, body)
       return tunables.save(id, input.values, { ...change, reason: input.reason, confirmed: input.confirmed })
     },
     async reset(context: Context, id: string, body: unknown) {
-      const input = parse(inputs.reset, body)
       const { change } = await allow(context, 'change', { kind: 'group', id })
+      const input = parse(inputs.reset, body)
       return tunables.reset(id, input.keys, { ...change, reason: input.reason })
     },
     async history(context: Context, query: unknown) {
+      await admits(context)
       const input = parse(inputs.history, query)
       const target: RevisionTarget = input.id ? { kind: input.kind, name: input.name, id: input.id } : { kind: input.kind, name: input.name }
       await allow(context, 'read', historyTarget(target))
       return tunables.history(target, { limit: input.limit, before: input.before })
     },
     async restore(context: Context, body: unknown) {
+      await admits(context)
       const input = parse(inputs.restore, body)
       const revision = (await tunables.store.getRevision(input.revision))
       const group = revision?.target.kind === 'group' ? revision.target.name : undefined
@@ -144,23 +167,23 @@ export function createService<Context>(options: ServiceOptions<Context>) {
       return list.map(preset => ({ ...preset, assigned: assignments.filter(item => item.recordId === preset.key).length }))
     },
     async createPreset(context: Context, set: string, body: unknown) {
-      const input = parse(inputs.createPreset, body)
       const { change } = await allow(context, 'change', { kind: 'presets', id: set })
+      const input = parse(inputs.createPreset, body)
       return tunables.presets(set).create(input, { ...change, reason: input.reason })
     },
     async updatePreset(context: Context, set: string, key: string, body: unknown) {
-      const input = parse(inputs.updatePreset, body)
       const { change } = await allow(context, 'change', { kind: 'presets', id: set })
+      const input = parse(inputs.updatePreset, body)
       return tunables.presets(set).update(key, input, { ...change, reason: input.reason })
     },
     async removePreset(context: Context, set: string, key: string, body: unknown) {
-      const input = parse(inputs.change, body)
       const { change } = await allow(context, 'change', { kind: 'presets', id: set })
+      const input = parse(inputs.change, body)
       return tunables.presets(set).remove(key, { ...change, reason: input.reason })
     },
     async makeDefault(context: Context, set: string, key: string, body: unknown) {
-      const input = parse(inputs.change, body)
       const { change } = await allow(context, 'change', { kind: 'presets', id: set })
+      const input = parse(inputs.change, body)
       return tunables.presets(set).makeDefault(key, { ...change, reason: input.reason })
     },
     async assignments(context: Context, set: string, subject?: string) {
@@ -168,8 +191,8 @@ export function createService<Context>(options: ServiceOptions<Context>) {
       return tunables.presets(set).assignments(subject)
     },
     async assign(context: Context, set: string, subject: string, slot: string, body: unknown) {
-      const input = parse(inputs.assign, body)
       const { change } = await allow(context, 'change', { kind: 'presets', id: set })
+      const input = parse(inputs.assign, body)
       return tunables.presets(set).assign(subject, slot, input.key, { ...change, reason: input.reason })
     },
     async catalog(context: Context, id: string) {
@@ -179,23 +202,23 @@ export function createService<Context>(options: ServiceOptions<Context>) {
       return Promise.all(entries.map(async entry => ({ ...entry, usedBy: await catalog.usedBy(entry.id, change.host) })))
     },
     async addEntry(context: Context, id: string, body: unknown) {
-      const input = parse(inputs.addEntry, body)
       const { change } = await allow(context, 'change', { kind: 'catalog', id })
+      const input = parse(inputs.addEntry, body)
       return tunables.catalog(id).add(input, { ...change, reason: input.reason })
     },
     async editEntry(context: Context, id: string, entry: string, body: unknown) {
-      const input = parse(inputs.editEntry, body)
       const { change } = await allow(context, 'change', { kind: 'catalog', id })
+      const input = parse(inputs.editEntry, body)
       return tunables.catalog(id).edit(entry, input.values, { ...change, reason: input.reason })
     },
     async retire(context: Context, id: string, entry: string, body: unknown) {
-      const input = parse(inputs.change, body)
       const { change } = await allow(context, 'change', { kind: 'catalog', id })
+      const input = parse(inputs.change, body)
       return tunables.catalog(id).retire(entry, { ...change, reason: input.reason })
     },
     async reinstate(context: Context, id: string, entry: string, body: unknown) {
-      const input = parse(inputs.change, body)
       const { change } = await allow(context, 'change', { kind: 'catalog', id })
+      const input = parse(inputs.change, body)
       return tunables.catalog(id).reinstate(entry, { ...change, reason: input.reason })
     }
   }

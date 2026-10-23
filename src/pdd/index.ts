@@ -97,7 +97,12 @@ export function checkAgainstModel(description: Description, model: Explanations)
   const definitions = [...description.groups, ...description.presets, ...description.catalogs]
   for (const definition of definitions) {
     const fields = definition.fields as FieldDescription[]
-    if (!definition.entity) continue
+    if (!definition.entity) {
+      for (const field of fields.filter(item => item.fact)) {
+        problems.push({ at: `${definition.id}.${field.key}`, message: `names the fact "${field.fact}", but ${definition.id} names no Entity to find it in.` })
+      }
+      continue
+    }
     const entity = model[definition.entity]
     if (!entity) {
       problems.push({ at: definition.id, message: `names the Entity "${definition.entity}", which product-model/entities does not hold.` })
@@ -110,6 +115,9 @@ export function checkAgainstModel(description: Description, model: Explanations)
       if (!stated) {
         problems.push({ at: `${definition.id}.${field.key}`, message: `names the fact "${fact}", which ${entity.title} does not keep.` })
         continue
+      }
+      if (field.ownHelp) {
+        problems.push({ at: `${definition.id}.${field.key}`, message: `carries its own help, but ${entity.title} describes "${fact}"; remove the help so the model's words are shown.` })
       }
       if (stated.default !== null && !sameDefault(stated.default, field.defaultDisplay)) {
         problems.push({ at: `${definition.id}.${field.key}`, message: `defaults to ${field.defaultDisplay}, but ${entity.title} says "${fact}" defaults to ${stated.default}.` })

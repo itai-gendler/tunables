@@ -127,6 +127,7 @@ try {
   await scoped.save('readers', { briefsPerReader: 9 }, { actor, reason: 'Plan upgrade' })
   await client.query('insert into audit_log (message) values ($1)', ['Raised the reader limit'])
   await client.query('commit')
+  scoped.committed()
 } catch (error) {
   await client.query('rollback')
   throw error
@@ -134,6 +135,10 @@ try {
   client.release()
 }
 ```
+
+Listeners registered with `onChange`, and the last good values a worker reads,
+hear a change made inside your transaction only when you call `committed()`
+after your commit. tunables cannot see your commit; after a rollback, don't call it.
 
 `within` accepts a node-postgres client inside `begin`, a postgres.js
 transaction from `sql.begin`, or any object with `query(text, params)`. A

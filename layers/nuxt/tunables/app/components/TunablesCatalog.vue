@@ -53,6 +53,8 @@ async function toggle(entry: CatalogEntrySummary) {
   const outcome = entry.state === 'available' ? await catalog.retire(entry.id) : await catalog.reinstate(entry.id)
   notice.value = outcome.saved ? `${nameOf(entry)} is ${entry.state === 'available' ? 'retired' : 'available again'}.` : outcome.problems[0]?.message
 }
+const historyFor = ref<CatalogEntrySummary>()
+const historyOpen = computed({ get: () => Boolean(historyFor.value), set: (open) => { if (!open) historyFor.value = undefined } })
 const problemsFor = (key: string) => problems.value.filter(problem => problem.key === key).map(problem => problem.message)
 const general = computed(() => problems.value.filter(problem => !problem.key || problem.key === 'id'))
 </script>
@@ -91,6 +93,7 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
           </p>
         </div>
         <UButton size="sm" color="neutral" variant="outline" label="Edit" @click="open(entry)" />
+        <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-history" :aria-label="`${nameOf(entry)} history`" @click="historyFor = entry" />
         <UButton
           size="sm"
           color="neutral"
@@ -135,6 +138,11 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
             <UButton type="submit" :label="editing === 'new' ? 'Add' : 'Save'" :loading="saving" />
           </div>
         </form>
+      </template>
+    </USlideover>
+    <USlideover v-model:open="historyOpen" :title="`${historyFor ? nameOf(historyFor) : ''} history`">
+      <template #body>
+        <TunablesHistory v-if="historyFor" :target="{ kind: 'catalog', name: catalog, id: historyFor.id }" />
       </template>
     </USlideover>
   </section>

@@ -10,7 +10,7 @@ steps:
     contexts:
       terminal:
         place: tunables-cli
-  - text: The Product checks, without a database, that the definitions hold, .env.example lists every deployment value, the explanations match the Product Model, and each setting's fact and default agree with it
+  - text: The Product checks, without a database, that the definitions hold, .env.example lists every deployment value, the explanations match the Product Model, each setting's fact and default agree with it, no setting carries help beside a fact the model describes, and no fact is named where no Entity is
     kind: product
     entities:
       - { entity: setting, effect: reads, facts: [Fact, Default, Explanation] }

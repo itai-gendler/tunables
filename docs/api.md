@@ -67,7 +67,7 @@ an optional peer dependency.
 | `sync(change?)` | Store what the definitions add. Returns a `SyncReport`. |
 | `presets(set)` | `list`, `get`, `create`, `update`, `remove`, `makeDefault`, `assign`, `assignments`, `resolve`. |
 | `catalog(id)` | `list`, `get`, `available`, `add`, `edit`, `retire`, `reinstate`, `usedBy`. |
-| `within(host)` | The same members inside your open transaction, plus `hold()`. |
+| `within(host)` | The same members inside your open transaction, plus `hold()` and `committed()`, which tells listeners once your transaction has committed. |
 | `onChange(group, listener)` | Called after a change to the group commits in this process. Returns an unsubscribe. |
 | `describe()` | Every definition as plain JSON, for the screens. |
 | `definitions`, `store` | What it was created with. |

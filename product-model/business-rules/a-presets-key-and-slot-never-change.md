@@ -4,7 +4,8 @@ appliesTo:
 references:
   - kind: code
     role: implementation
-    target: layers/nuxt/tunables/app/components/TunablesPresetEditor.vue
+    target: src/engine/tunables.ts#update
+    title: The presets update, which keeps a preset's key and slot
 ---
 
 # A preset's key and slot never change

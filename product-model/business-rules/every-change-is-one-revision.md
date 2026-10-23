@@ -20,8 +20,11 @@ references:
 
 Every change to a settings group, a preset, a subject's assignment or a catalog
 entry — saved, reset, restored, synced, seeded or made the default — records
-exactly one revision, with who made it, why when a reason was given, each value
-before and after, and the whole of what changed as it was after. A save that
-changes nothing records none. Revisions are only ever added, never changed or
+exactly one revision on each thing it changes, with who made it, why when a
+reason was given, each value before and after, and the whole of what changed as
+it was after. Making a preset the default records one on it and one on the
+former default; removing a preset records one on it and one on the assignments
+of each subject it returned to the default; a sync records one on each group and
+each preset it changes. A save that changes nothing records none. Revisions are only ever added, never changed or
 removed, and a revision is written in the same transaction as the change it
 records.

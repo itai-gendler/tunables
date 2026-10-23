@@ -19,6 +19,10 @@ exclusions:
     paths: [scripts/]
   - description: Continuous integration and repository automation.
     paths: [.github/]
+  - description: The command-line tool's offer to update itself, copied from pdd-kit.
+    paths: [src/core/cli-update.ts, src/update-check.ts]
+  - description: Test helpers host apps use in their own tests.
+    paths: [src/testing.ts]
 unmapped: []
 limitations: []
 ---

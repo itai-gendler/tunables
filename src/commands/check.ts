@@ -33,6 +33,12 @@ export async function runCheck(cwd: string, options: CheckOptions = {}): Promise
     findings.push({ check: 'definitions', message: error.message })
   }
 
+  // Nothing is compared against definitions that do not hold.
+  if (!tunables) {
+    report(options, cwd, path, passed, findings)
+    return 1
+  }
+
   if (config.environment) {
     const file = resolve(cwd, config.envExample ?? '.env.example')
     const expected = renderEnvExample(config.environment, config.envHeader)
@@ -49,18 +55,22 @@ export async function runCheck(cwd: string, options: CheckOptions = {}): Promise
     } else passed.push(`${relative(cwd, file)} matches the Product Model`)
   }
 
-  if (model && tunables) {
+  if (model) {
     const problems = checkAgainstModel(tunables.describe(), model)
     for (const problem of problems) findings.push({ check: 'model', message: `${problem.at} ${problem.message}` })
     if (!problems.length) passed.push('every field\'s fact and default agree with the Product Model')
   }
 
+  report(options, cwd, path, passed, findings)
+  return findings.length ? 1 : 0
+}
+
+function report(options: CheckOptions, cwd: string, path: string, passed: string[], findings: Finding[]) {
   if (options.json) {
     console.log(JSON.stringify({ config: relative(cwd, path), passed, findings }, null, 2))
-  } else {
-    for (const line of passed) console.log(`✓ ${line}`)
-    for (const finding of findings) console.error(`✗ ${finding.check}: ${finding.message}`)
-    console.log(findings.length ? `\n${findings.length} problem${findings.length === 1 ? '' : 's'}.` : '\ntunables check passed.')
+    return
   }
-  return findings.length ? 1 : 0
+  for (const line of passed) console.log(`✓ ${line}`)
+  for (const finding of findings) console.error(`✗ ${finding.check}: ${finding.message}`)
+  console.log(findings.length ? `\n${findings.length} problem${findings.length === 1 ? '' : 's'}.` : '\ntunables check passed.')
 }

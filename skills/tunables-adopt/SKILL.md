@@ -150,41 +150,45 @@ Follow [wiring.md](references/wiring.md) for each step, in this order.
 23. Declare every environment variable the app reads, then run `tunables env`.
     It rewrites `.env.example` entirely, so anything undeclared is dropped.
 
-## 6. Move existing values across
+## 6. The Product Model, when the repository has one
 
-24. In each environment you can reach, after the tables exist: run
-    `tunables sync`, which seeds every group with the defaults the definitions
-    declare. Then, for every value that environment ran with that differs from
-    the default (an environment override, a settings row, a JSON file), run
-    `tunables set <group> key=value ... --reason "Moved from <old home>"`, so
-    the history records the move. Never insert into tunables' tables directly.
-25. For environments you cannot reach, hand the user the exact `sync` and `set`
-    commands per environment. Then remove the old homes: environment variables
-    from deployment manifests, rows or files that held settings, and admin code
-    that edited them.
-
-## 7. The Product Model, when the repository has one
-
-26. Run `tunables model draft --out <file outside the repository>`. It drafts
+24. Run `tunables model draft --out <file outside the repository>`. It drafts
     the `## Information kept` lines the model lacks for each group, preset set
     and catalog, in the model's own form, and never writes the model.
-27. Bring the draft to the `pdd-ideate` skill as the change to decide: invoke it
+25. Bring the draft to the `pdd-ideate` skill as the change to decide: invoke it
     when your harness can, otherwise hand the draft to the user to bring to
     `/pdd-ideate`. Its approval decides each fact's words and default; do not
     write `product-model/` from this skill.
-28. Once the model holds the facts, run `tunables explain` to generate the
+26. Once the model holds the facts, run `tunables explain` to generate the
     explanations module, and pass it to `createTunables` as `explanations`. A
     field then explains itself in the model's words; do not also write `help`.
 
 Without a Product Model, give each field a `help` sentence in the product's own
 words, and a `label` when the key does not read well.
 
+## 7. Check, then move existing values across
+
+27. Run `tunables check` before anything is synced. **Stop on any finding**:
+    report each one and settle it with the user — fix the code, or, when the
+    Product Model is what disagrees, bring it to `/pdd-ideate` — then check
+    again. Nothing is synced while a finding remains.
+28. In each environment you can reach, after the tables exist: run
+    `tunables sync`, which seeds every group with the defaults the definitions
+    declare. Then, for every value that environment ran with that differs from
+    the default (an environment override, a settings row, a JSON file), run
+    `tunables set <group> key=value ... --reason "Moved from <old home>"`, so
+    the history records the move. Never insert into tunables' tables directly.
+29. For environments you cannot reach, hand the user the exact `sync` and `set`
+    commands per environment. Then remove the old homes: environment variables
+    from deployment manifests, rows or files that held settings, and admin code
+    that edited them.
+
 ## 8. Finish
 
-29. Run `tunables check` and fix every finding. Run the app's typecheck, lint
-    and tests. When screens changed and the app keeps screenshot baselines,
-    update them the way its instructions say.
-30. Report:
+30. Run `tunables check` again and fix every finding. Run the app's typecheck,
+    lint and tests. When screens changed and the app keeps screenshot
+    baselines, update them the way its instructions say.
+31. Report:
     - the groups, preset sets and catalogs adopted, with their field counts;
     - deployment values declared and `.env.example` written;
     - values left in code, and values that are user data, with why;
@@ -204,6 +208,7 @@ words, and a `label` when the key does not read well.
 - Never leave a value in two homes, and never keep a fallback default at a read.
 - Never write tunables' tables with SQL, and never move a value in without a
   save that records its revision.
+- Never sync while `tunables check` has a finding.
 - Never make boot connect to the database, and never run `sync` at boot.
 - Never ship a route without `authorize`, and never write `authorize` that
   allows everyone.

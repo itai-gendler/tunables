@@ -1,17 +1,14 @@
 ---
 kind: primary
 routes:
-  screens: Screens
   api: API
 steps:
-  - text: The Administrator resets one setting, chosen settings or the whole group to the default each declares
+  - text: The Administrator resets the settings named, or the whole group, to the default each declares
     kind: actor
     actor: administrator
     entities:
-      - { entity: setting, effect: reads, facts: [Label, Default] }
+      - { entity: setting, effect: reads, facts: [Key, Default] }
     contexts:
-      screens:
-        place: embedded-screens::settings-group
       api:
         place: http-api
   - text: The Product checks the settings group with those defaults like any change
@@ -20,8 +17,6 @@ steps:
     entities:
       - { entity: settings-group, effect: reads, facts: [Values, Rules] }
     contexts:
-      screens:
-        place: embedded-screens::settings-group
       api:
         place: http-api
   - text: The Product saves the defaults, with a reason that names what was reset unless another was given
@@ -30,8 +25,6 @@ steps:
     entities:
       - { entity: settings-group, effect: changes, facts: [Values, Changed at, Changed by] }
     contexts:
-      screens:
-        place: embedded-screens::settings-group
       api:
         place: http-api
 ---
@@ -44,10 +37,10 @@ A tuned value turned out worse than the one the app was designed with.
 
 ## Outcome
 
-The chosen settings read their declared defaults again, and the history says
-what was reset.
+The settings read their declared defaults again, and the history says what was
+reset.
 
 ## Edge cases
 
-- On the screens, resetting a setting puts its default in the form, and saving the group stores it.
 - Resetting settings already at their defaults records nothing.
+- The host app's own code resets through the library the same way.

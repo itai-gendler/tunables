@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useGroupForm, useTunablesDescription, type FieldDescription } from 'tunables/vue'
+import { useGroupForm, useTunablesClient, useTunablesDescription, type CatalogEntrySummary, type FieldDescription } from 'tunables/vue'
 
 /**
  * A settings group, edited beside what it affects: every field by section, with
@@ -20,6 +20,20 @@ const sections = computed(() => {
   const loose = group.fields.filter(field => !field.section)
   return loose.length ? [{ name: 'General', anchor: `tunables-${group.id}-general`, fields: loose }, ...named] : named
 })
+// A pick setting chooses from its catalog's Available entries.
+const client = useTunablesClient()
+const catalogEntries = ref<Record<string, CatalogEntrySummary[]>>({})
+watch(() => form.group.value?.fields.filter(field => field.kind === 'pick').map(field => field.catalog!) ?? [], async (ids) => {
+  for (const id of new Set(ids)) {
+    if (!catalogEntries.value[id]) catalogEntries.value = { ...catalogEntries.value, [id]: await client.catalog(id) }
+  }
+}, { immediate: true })
+function entriesFor(field: FieldDescription) {
+  if (field.kind !== 'pick' || !field.catalog) return undefined
+  const labelField = description.value?.catalogs.find(item => item.id === field.catalog)?.labelField
+  return (catalogEntries.value[field.catalog] ?? []).filter(entry => entry.state === 'available')
+    .map(entry => ({ value: entry.id, label: labelField ? String(entry.values[labelField] ?? entry.id) : entry.id }))
+}
 const dirtyIn = (fields: FieldDescription[]) => fields.some(field => form.dirtyKeys.value.includes(field.key))
 const showHistory = ref(false)
 const confirmOpen = computed({ get: () => Boolean(form.confirm.value), set: (open) => { if (!open) form.cancelConfirm() } })
@@ -101,6 +115,7 @@ async function confirmAndSave() {
               v-model="form.draft[field.key]"
               :field="field"
               :effects="description?.effects"
+              :entries="entriesFor(field)"
               :notes="form.entry.value?.notes[field.key]"
               :problems="form.fieldProblems(field.key)"
               :dirty="form.dirtyKeys.value.includes(field.key)"

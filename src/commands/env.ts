@@ -7,7 +7,7 @@ import { configAt, readText, type ConfigOptions } from './shared.js'
 /** Write `.env.example` from the deployment values; with `--check`, only say whether it is current. */
 export async function runEnv(cwd: string, options: ConfigOptions & { check?: boolean } = {}): Promise<number> {
   const { config } = await configAt(cwd, options)
-  if (!config.environment) throw new UsageError('tunables.config.ts declares no `environment`.')
+  if (!config.environment || !Object.keys(config.environment.definitions).length) throw new UsageError('tunables.config.ts declares no deployment values in `environment`.')
   const file = resolve(cwd, config.envExample ?? '.env.example')
   const rendered = renderEnvExample(config.environment, config.envHeader)
   if (options.check) {

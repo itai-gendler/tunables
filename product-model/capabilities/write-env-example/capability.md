@@ -13,5 +13,6 @@ references:
 # Write .env.example
 
 Writes `.env.example` from the deployment values: each under its section and
-description, commented out at its default, and left empty where it must be set,
-so a deployment sees every value it may set and what each is for.
+description, with the choices it may be one of where it offers choices,
+commented out at its default, and left empty where it must be set, so a
+deployment sees every value it may set and what each is for.

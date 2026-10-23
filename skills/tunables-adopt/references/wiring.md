@@ -383,8 +383,9 @@ A guard must work without `host`: `tunables set` from the CLI passes none.
 ## The deploy step
 
 Run `tunables sync` after the tables exist and before the new code serves. It
-seeds new groups with their defaults, adds new fields with theirs, creates a
-default preset for each empty slot and seeds empty catalogs, each as a
+seeds new groups with their defaults, adds new fields with theirs, adds a
+field newly declared on a preset set to every stored preset at its default,
+creates a default preset for each empty slot and seeds empty catalogs, each as a
 revision, and reports stored keys no definition declares (kept, never
 dropped).
 

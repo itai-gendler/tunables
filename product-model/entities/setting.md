@@ -28,7 +28,7 @@ value reads to a person, the input it is edited with and its default.
 - **Allowed values** — the least and most it may be beyond its unit, the choices it offers, how long a text may be, or the catalog it picks from
 - **Default** — the value it starts at and is reset to, declared only here
 - **Fact** — the Product Model fact it is
-- **Explanation** — what it is, in the Product Model's description of its fact, or help written beside it where the model does not describe it, shown beside its label with its default
+- **Explanation** — what it is, in the Product Model's description of its fact, which wins over any help written beside it, or that help where the model does not describe the fact, shown beside its label with its default
 - **Section** — the sub-heading it is listed under in its group
 - **Effects** — what changing it changes, such as cost or what people see, the ones that cost money or reach people marked as warnings
 - **Notes** — what its current value means in the host app now, such as how many things use it

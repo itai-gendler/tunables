@@ -84,10 +84,20 @@ export function createHandler<Context = Request>(options: HandlerOptions<Context
     try {
       segments = url.pathname.split('/').filter(Boolean).map(segment => decodeURIComponent(segment))
     } catch {
-      return json(400, { error: 'The path is not valid.' })
+      return undefined
     }
     if (base.some((part, index) => segments[index] !== part)) return undefined
     const rest = segments.slice(base.length)
+    // Nothing is said about a path, a method or a body to someone who may not use tunables.
+    const refused = async () => {
+      try {
+        await service.admits(context)
+        return undefined
+      } catch (error) {
+        const { status, body } = errorResponse(error)
+        return json(status, body)
+      }
+    }
     let methodAllowed = false
     for (const candidate of table) {
       const params = match(candidate.pattern, rest)
@@ -101,7 +111,7 @@ export function createHandler<Context = Request>(options: HandlerOptions<Context
           try {
             body = JSON.parse(text)
           } catch {
-            return json(400, { error: 'The body is not JSON.' })
+            return await refused() ?? json(400, { error: 'The body is not JSON.' })
           }
         }
       }
@@ -113,7 +123,7 @@ export function createHandler<Context = Request>(options: HandlerOptions<Context
         return json(status, answer)
       }
     }
-    return methodAllowed ? json(405, { error: `${request.method} is not allowed here.` }) : json(404, { error: 'Not found.' })
+    return await refused() ?? (methodAllowed ? json(405, { error: `${request.method} is not allowed here.` }) : json(404, { error: 'Not found.' }))
   }
 }
 

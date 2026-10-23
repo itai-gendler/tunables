@@ -1,6 +1,6 @@
 ---
 domain: presets-and-catalogs
-availability: [{ place: embedded-screens }, { place: http-api }]
+availability: [{ place: embedded-screens }, { place: http-api }, { place: library }]
 references:
   - kind: code
     role: implementation

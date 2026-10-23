@@ -206,6 +206,57 @@ describe('saving', () => {
     expect(restored.problems[0]!.message).toMatch(/Run Config "Weekly brief": its Screening budget, \$2.50/)
   })
 
+  it('names every problem at once: kinds and rules, presets and every guard', async () => {
+    const kinds = await tunables.save('collection', { checkIntervalMinutes: 0, newFeedLookbackDays: 400 })
+    expect(kinds.problems.map(problem => problem.message)).toEqual([
+      'Check interval must be more than 0.',
+      'New-feed lookback days may not exceed the Longest lookback.'
+    ])
+    const store = memoryStore()
+    const strict = createTunables({
+      store, groups, presets, catalogs, effects, units,
+      guards: { run: [() => ['First guard.'], () => ['Second guard.']] }
+    })
+    await strict.sync()
+    const refused = await strict.save('run', { screeningBudgetLimitUsd: 0.2 })
+    expect(refused.problems.map(problem => problem.message)).toEqual([
+      'Run Config "Weekly brief": its Screening budget, $0.30, is above the Screening budget limit of $0.20.',
+      'First guard.',
+      'Second guard.'
+    ])
+  })
+
+  it('records a revision on every target a change reaches', async () => {
+    const set = tunables.presets('run-configs')
+    await set.create({ key: 'light', slot: 'daily', label: 'Light', values: { maxBudgetUsd: 0.05 } })
+    await set.makeDefault('light', { actor: 'Ada' })
+    expect((await tunables.history({ kind: 'preset', name: 'run-configs', id: 'daily' }))[0]).toMatchObject({ reason: '"Light" became the default for daily.', changes: [{ key: 'default', from: true, to: false }] })
+    await set.makeDefault('daily')
+    await set.assign('reader-1', 'daily', 'light')
+    await set.remove('light', { actor: 'Ada' })
+    expect((await tunables.history({ kind: 'assignment', name: 'run-configs', id: 'reader-1' }))[0]).toMatchObject({ actor: 'Ada', changes: [{ key: 'daily', from: 'light', to: null }] })
+  })
+
+  it('adds a field newly declared on a preset set to every stored preset', async () => {
+    const [daily] = await current.store.listRecords('preset:run-configs')
+    const { maxStories: _dropped, ...older } = (daily!.data.values as Record<string, unknown>)
+    await current.store.putRecord({ collection: 'preset:run-configs', id: daily!.id, data: { ...daily!.data, values: older } })
+    const report = await tunables.sync()
+    expect(report.added).toEqual([{ group: 'run-configs:daily', key: 'maxStories' }])
+    expect((await tunables.presets('run-configs').get('daily'))!.values.maxStories).toBe(10)
+  })
+
+  it('records no actor for a sync nobody named', async () => {
+    const fresh = make(memoryStore())
+    await fresh.sync()
+    expect((await fresh.history('readers'))[0]!.actor).toBeNull()
+  })
+
+  it('refuses seeds that do not hold', () => {
+    const broken = { ...catalogs[0], seed: [{ id: 'x', values: { ...catalogs[0].seed![0]!.values, contextWindowTokens: 0 } }] }
+    expect(() => createTunables({ store: memoryStore(), groups, presets, catalogs: [broken], effects, units })).toThrow(/models\.x's seed does not hold: Context window must be more than 0\./)
+  })
+
   it('tells listeners in this process after a change commits', async () => {
     const heard: number[] = []
     const stop = tunables.onChange('readers', values => heard.push(values.briefsPerReader))

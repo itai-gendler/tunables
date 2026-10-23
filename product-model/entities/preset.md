@@ -25,5 +25,5 @@ groups allow.
 - **Slot** — what it fills; it never changes
 - **Label** — what administration calls it
 - **Default** — whether every subject without an assignment for its slot runs as it
-- **Values** — its value for each setting its set declares
+- **Values** — its value for each setting its set declares; a setting newly declared on the set is added at its default by the next sync, so a stored preset never lacks one
 - **Assigned** — how many subjects are assigned it rather than following the default

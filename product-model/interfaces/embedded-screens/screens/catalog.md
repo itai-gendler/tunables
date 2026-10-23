@@ -15,4 +15,5 @@ references:
 
 One catalog's entries, Available and Retired, each with its id and its values.
 The Administrator adds an entry, edits one, retires one nothing uses, reinstates
-a retired one, and reads what uses an entry when it cannot be retired.
+a retired one, reads what uses an entry when it cannot be retired, and opens an
+entry's history.

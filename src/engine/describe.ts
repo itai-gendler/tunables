@@ -15,8 +15,10 @@ export interface FieldDescription {
   label: string
   /** The Product Model fact the field is, when it names one. */
   fact?: string
-  /** The field's explanation: its own, or its Product Model fact's. */
+  /** The field's explanation: its Product Model fact's, or its own where the model has none. */
   help?: string
+  /** Whether the field carries help of its own. */
+  ownHelp?: boolean
   section?: string
   affects: string[]
   unit?: { id: string, label: string }
@@ -75,8 +77,10 @@ export function describeFields(fields: Fields, entity: string | undefined, expla
       kind: field.kind,
       label: fieldLabel(key, field),
       fact: field.fact,
+      ownHelp: field.help !== undefined,
       // Rule `every-field-explains-itself`.
-      help: field.help ?? explain(explanations, entity, field.fact)?.text,
+      // The Product Model's description wins; a field's own `help` is for what the model does not describe.
+      help: explain(explanations, entity, field.fact)?.text ?? field.help,
       section: field.section,
       affects: [...(field.affects ?? [])],
       default: field.default,

@@ -15,7 +15,10 @@ references:
 Checks, without a database, everything that must hold before the app runs: the
 definitions are sound, `.env.example` lists every deployment value as declared,
 the generated explanations match the Product Model, and every setting's fact
-exists in the model with the default the model states.
+exists in the model with the default the model states. It also reports a
+setting that carries help of its own while naming a fact the model describes,
+and a setting that names a fact while the group, preset set or catalog declaring
+it names no Entity.
 
 ## Intent
 

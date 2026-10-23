@@ -150,7 +150,8 @@ preset was stored without.
 `sync` makes sure every slot has a default. For a slot without one, it creates
 the presets `seed` lists for that slot (the first becomes the default), or,
 without a seed, one preset per slot keyed by the slot, labelled after it, at
-the field defaults.
+the field defaults. A field newly declared on the set is added to every stored
+preset at its default, so a stored preset never lacks one.
 
 ## On the screens
 

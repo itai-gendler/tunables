@@ -1,6 +1,6 @@
 ---
 domain: presets-and-catalogs
-availability: [{ place: embedded-screens }, { place: http-api }]
+availability: [{ place: embedded-screens }, { place: http-api }, { place: library }]
 references:
   - kind: code
     role: implementation
@@ -14,4 +14,4 @@ references:
 
 Makes a preset its slot's default, and the slot's former default an ordinary
 preset, so every subject without an assignment for the slot runs as the new
-one.
+one. Each of the two presets gets a revision of its own.

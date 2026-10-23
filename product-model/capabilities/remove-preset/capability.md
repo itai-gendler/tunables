@@ -1,6 +1,6 @@
 ---
 domain: presets-and-catalogs
-availability: [{ place: embedded-screens }, { place: http-api }]
+availability: [{ place: embedded-screens }, { place: http-api }, { place: library }]
 references:
   - kind: code
     role: implementation
@@ -13,4 +13,5 @@ references:
 # Remove a preset
 
 Removes a preset that is not its slot's default. Every subject assigned it
-returns to following the slot's default.
+returns to following the slot's default. The preset gets a revision, and so do
+the assignments of each subject it returned to the default.

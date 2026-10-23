@@ -193,11 +193,14 @@ await tunables.reset('run') // every field
 ## Explanations
 
 A field explains itself beside its label: the question mark on the form, the
-help in All settings. The explanation is the field's `help`, or, when the
-field names a `fact` and its group names an `entity`, the Product Model's own
-description of that fact. With a [pdd-kit](https://pdd-kit.dev) Product Model,
-write `fact` instead of `help`, run [`tunables explain`](./cli-check.md#explain)
-and pass the module it writes to `createTunables` as `explanations`. The
+help in All settings. When the field names a `fact` and its group names an
+`entity`, the explanation is the Product Model's own description of that fact;
+otherwise it is the field's `help`. With a [pdd-kit](https://pdd-kit.dev)
+Product Model, write `fact` instead of `help`, run
+[`tunables explain`](./cli-check.md#explain) and pass the module it writes to
+`createTunables` as `explanations`. `tunables check` reports a field that
+carries `help` for a fact the model describes, and a `fact` on a group that
+names no `entity`. The
 [news example](./news-example.md) does exactly this.
 
 ## Where a group goes

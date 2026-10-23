@@ -1,6 +1,6 @@
 ---
 domain: administration
-availability: [{ place: embedded-screens }, { place: http-api }, { place: tunables-cli }]
+availability: [{ place: embedded-screens }, { place: http-api }, { place: tunables-cli }, { place: library }]
 references:
   - kind: code
     role: implementation

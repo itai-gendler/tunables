@@ -135,6 +135,34 @@ describe('fetch handler', () => {
   })
 })
 
+describe('access before anything else', () => {
+  it('says nothing about paths, methods or bodies to someone not allowed in', async () => {
+    const handle = createHandler<Context>({ tunables, ...access })
+    const nobody = { who: 'nobody' as const }
+    const answers = await Promise.all([
+      handle(new Request('http://app.test/api/tunables/describe', { method: 'POST' }), nobody),
+      handle(new Request('http://app.test/api/tunables/groups/run', { method: 'PUT', body: '{}' }), nobody),
+      handle(new Request('http://app.test/api/tunables/groups/run', { method: 'PUT', body: '{' }), nobody),
+      handle(new Request('http://app.test/api/tunables/history?kind=group&name=moon'), nobody),
+      handle(new Request('http://app.test/api/tunables/nothing'), nobody),
+      handle(new Request('http://app.test/api/tunables/restore', { method: 'POST', body: '{"revision":"1"}' }), nobody)
+    ])
+    for (const answer of answers) {
+      expect(answer?.status).toBe(404)
+      expect(await answer?.json()).toEqual({ error: 'Not found.' })
+    }
+  })
+
+  it('lists on All settings only the groups the host lets someone read', async () => {
+    const client = fetchClient({ fetch: async (input, init) => (await createHandler<Context>({
+      tunables,
+      actor: () => 'support',
+      authorize: (_context, request) => request.action === 'read' && request.target.id !== 'run'
+    })(new Request(new URL(String(input), 'http://app.test'), init), { who: 'reader' }))! })
+    expect((await client.overview()).map(entry => entry.group)).toEqual(['collection', 'readers'])
+  })
+})
+
 describe('Express middleware', () => {
   let server: ReturnType<typeof createServer>
   let base: string

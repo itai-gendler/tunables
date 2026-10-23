@@ -205,6 +205,12 @@ jobs:
       - name: Deploy to Cloudflare Pages
         working-directory: .
         run: |
+          # Until the Cloudflare Pages project and its token exist, the site is
+          # built and tested but not deployed.
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN is not set; skipping the production deploy."
+            exit 0
+          fi
           npx --yes wrangler@4.149.0 pages deploy site/.output/public \
             --project-name=tunables \
             --branch=main \

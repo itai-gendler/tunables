@@ -42,3 +42,5 @@ changed to match.
 
 - A stale `.env.example` or explanations fails the same way and names the command that rewrites it.
 - Definitions that do not hold fail the check before anything is compared.
+- A setting that carries help of its own while naming a fact the model describes is reported, since the model's description is what it shows.
+- A setting that names a fact while its settings group, preset set or catalog names no Entity is reported, since the fact belongs to no Entity.

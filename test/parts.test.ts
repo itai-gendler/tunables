@@ -82,6 +82,19 @@ describe('pick fields in a group', () => {
   })
 })
 
+describe('changes inside a host transaction', () => {
+  it('reach listeners only once the host says it committed', async () => {
+    const tunables = await testTunables({ groups, presets, catalogs, units, effects })
+    const heard: number[] = []
+    tunables.onChange('readers', values => heard.push(values.briefsPerReader))
+    const scoped = tunables.within({})
+    await scoped.save('readers', { briefsPerReader: 9 })
+    expect(heard).toEqual([])
+    scoped.committed()
+    expect(heard).toEqual([9])
+  })
+})
+
 describe('testing kit', () => {
   it('gives an app its tunables in memory, synced, with values set for a test', async () => {
     const tunables = await testTunables({ groups, presets, catalogs, units, effects })
@@ -126,6 +139,21 @@ describe('Product Model link', () => {
       { at: 'run.moonPhase', message: 'names the fact "Moon phase", which Run Settings does not keep.' }
     ])
     expect(draftFacts(description, model)).toContain('- **Moon phase** — how full the moon must be; defaults to 400')
+  })
+})
+
+describe('the model\'s words win', () => {
+  it('shows the model\'s explanation over a field\'s own help, and check reports the duplicate and a fact with no Entity', async () => {
+    const model = await readModelFacts(join(import.meta.dirname, '../fixture/product-model'))
+    const { rules: _rules, confirm: _confirm, ...plain } = run
+    const retyped = defineGroup({ ...plain, fields: { ...run.fields, budgetLimitUsd: { ...run.fields.budgetLimitUsd, help: 'Retyped help.' } } })
+    const loose = defineGroup({ id: 'loose', title: 'Loose', fields: { n: { ...run.fields.turnsLimit } } })
+    const description = createTunables({ store: memoryStore(), groups: [retyped, loose], effects, units, explanations: model }).describe()
+    expect(description.groups[0]!.fields[0]!.help).toBe('The most any Run may spend.')
+    expect(checkAgainstModel(description, model)).toEqual([
+      { at: 'run.budgetLimitUsd', message: 'carries its own help, but Run Settings describes "Budget limit"; remove the help so the model\'s words are shown.' },
+      { at: 'loose.n', message: 'names the fact "Turns limit", but loose names no Entity to find it in.' }
+    ])
   })
 })
 

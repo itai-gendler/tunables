@@ -326,6 +326,12 @@ function unmanagedMessage(
     return `${display(marker.file)} is ${marker.reason}, so tunables cannot tell which skills it installed in ${where}. `
       + `If you own that directory, run \`${reinstallCommand(target, true)}\` to reinstall them.`
   }
+  // Skills placed by hand, with no marker, are named so the reader knows update left them.
+  const unmarked = TUNABLES_SKILLS.filter(name => existsSync(join(skillsDir, name)))
+  if (unmarked.length) {
+    return `${where} holds ${unmarked.join(', ')} with no tunables marker, so update left them as they are. `
+      + `If you own them, run \`${reinstallCommand(target, true)}\` to replace them with this version.`
+  }
   return undefined
 }
 

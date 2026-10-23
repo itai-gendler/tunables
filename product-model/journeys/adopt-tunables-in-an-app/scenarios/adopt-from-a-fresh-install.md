@@ -32,21 +32,21 @@ steps:
     contexts:
       repository:
         place: agent-skills
+  - text: The AI agent checks the definitions, and they pass before anything is synced
+    kind: actor
+    actor: ai-agent
+    capability: check-definitions
+    entities:
+      - { entity: setting, effect: reads, facts: [Fact, Default] }
+    contexts:
+      repository:
+        place: tunables-cli
   - text: The Developer runs sync, which stores each new settings group at its defaults
     kind: actor
     actor: developer
     capability: sync-stored-settings
     entities:
       - { entity: settings-group, effect: changes, facts: [Values, Changed at, Changed by] }
-    contexts:
-      repository:
-        place: tunables-cli
-  - text: The AI agent checks the definitions, and they pass
-    kind: actor
-    actor: ai-agent
-    capability: check-definitions
-    entities:
-      - { entity: setting, effect: reads, facts: [Fact, Default] }
     contexts:
       repository:
         place: tunables-cli
@@ -61,5 +61,5 @@ installed tunables' skills yet.
 
 ## Outcome
 
-The goal is achieved: the app's values are declared, stored at their defaults
-and checked, and the Developer approved every one before it was written.
+The goal is achieved: the app's values are declared, checked, and then stored
+at their defaults, and the Developer approved every one before it was written.

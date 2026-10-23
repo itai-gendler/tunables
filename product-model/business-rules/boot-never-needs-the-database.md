@@ -8,12 +8,16 @@ appliesTo:
 references:
   - kind: code
     role: implementation
+    target: src/engine/tunables.ts#createTunables
+  - kind: code
+    role: implementation
     target: src/commands/shared.ts#offline
 ---
 
 # Starting the app never needs the database
 
 Creating the host app's tunables checks the definitions and connects nothing;
-the database is reached only when a value is read or changed. The definition
+the database is reached only when a value is read or changed, or when the
+host app's deploy or migrate step syncs, never as the app starts. The definition
 checks, `.env.example`, the explanations and the drafted facts all work with no
 database at all.

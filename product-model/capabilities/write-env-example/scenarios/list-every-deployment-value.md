@@ -10,7 +10,7 @@ steps:
     contexts:
       terminal:
         place: tunables-cli
-  - text: The Product writes every deployment value under its section and description, commented out at its default, and empty where it must be set
+  - text: The Product writes every deployment value under its section and description, with its choices where it offers some, commented out at its default, and empty where it must be set
     kind: product
     entities:
       - { entity: deployment-value, effect: reads, facts: [Name, Description, Default, Allowed values, Section] }

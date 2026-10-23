@@ -23,6 +23,7 @@ value that is already stored:
 
 - stores each new group at its defaults;
 - adds each new field to a stored group at its default;
+- adds each new preset field to every stored preset at its default;
 - creates a default preset for each slot that has none, from the set's `seed`;
 - adds a catalog's `seed` entries when the catalog is empty;
 - reports stored fields no definition declares any more. It keeps them; it

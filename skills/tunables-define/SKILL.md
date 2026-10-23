@@ -139,7 +139,8 @@ what is missing. Plan each environment explicitly.
 - **Setting to environment.** Read each environment's stored value first; add
   the deployment value; remove the field; `tunables env`; set the variable in
   each deployment that differed.
-- **Preset field.** Stored presets that lack it read its default. A new
+- **Preset field.** `sync` adds it to every stored preset at its default, one
+  revision per preset. A new
   `within` or `rules` check applies to the next save of each preset, and a
   group save is refused while any preset falls outside `within`; check the
   stored presets with the screens or the API before tightening.

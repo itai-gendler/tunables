@@ -14,7 +14,7 @@ steps:
         place: embedded-screens::presets
       api:
         place: http-api
-  - text: The Product removes the preset, and every assignment of it with it
+  - text: The Product removes the preset, and every assignment of it with it, the change kept in the history of the preset and of each subject's assignments
     kind: product
     actor: administrator
     entities:
@@ -44,4 +44,5 @@ A preset is no longer wanted.
 
 ## Outcome
 
-The preset is gone, nobody runs as it, and its history remains.
+The preset is gone, nobody runs as it, and its history remains. The history of
+each subject's assignments says it returned to the slot's default.
