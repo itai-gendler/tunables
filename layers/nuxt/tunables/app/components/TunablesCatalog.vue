@@ -142,7 +142,7 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
     </USlideover>
     <USlideover v-model:open="historyOpen" :title="`${historyFor ? nameOf(historyFor) : ''} history`">
       <template #body>
-        <TunablesHistory v-if="historyFor" :target="{ kind: 'catalog', name: catalog, id: historyFor.id }" />
+        <TunablesHistory v-if="historyFor" :target="{ kind: 'catalog', name: props.catalog, id: historyFor.id }" />
       </template>
     </USlideover>
   </section>

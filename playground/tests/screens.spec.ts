@@ -111,6 +111,12 @@ test('a model in use cannot be retired', async ({ page }) => {
   await expect(page.getByText('Used by Run Config "Daily brief", Run Config "Weekly brief"').first()).toBeVisible()
 })
 
+test('a catalog entry shows its own history', async ({ page }) => {
+  await open(page, '/admin/run-configs/models', 'GPT-OSS 120B (Groq)')
+  await page.getByRole('button', { name: 'GPT-OSS 120B (Groq) history' }).click()
+  await expect(page.getByRole('dialog', { name: 'GPT-OSS 120B (Groq) history' })).toContainText('Seeded.')
+})
+
 test('a reader is assigned a Run Config by reference', async ({ page }) => {
   await open(page, '/admin/readers', 'Ada Lovelace')
   await page.getByRole('combobox', { name: 'Daily Run Config' }).first().click()
