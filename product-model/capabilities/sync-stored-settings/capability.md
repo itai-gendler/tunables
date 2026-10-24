@@ -30,7 +30,9 @@ default, adds a setting newly declared on a preset set to every stored preset at
 its default, creates each preset slot's default where the slot has none, and
 fills an empty catalog with the entries it starts with. Each group and each
 preset it changes is recorded as a revision of its own. A stored setting no
-definition declares any more is reported and kept.
+definition declares any more is reported and kept. Sync touches only the
+system's values: a scope's override is never seeded, and exists only once
+someone overrides a value there.
 
 Sync runs where the host app sets up its storage: in its deploy or migrate
 step, once tunables' tables exist, whether the host app creates them through

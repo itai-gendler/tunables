@@ -11,11 +11,12 @@ import { bigserial, index, jsonb, pgSchema, primaryKey, text, timestamp } from '
 export function tunablesTables(schemaName = 'tunables') {
   const schema = pgSchema(schemaName)
   const groups = schema.table('tunables_groups', {
-    id: text('id').primaryKey(),
+    id: text('id').notNull(),
+    scope: text('scope').notNull().default(''),
     values: jsonb('values').notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }),
     updatedBy: text('updated_by')
-  })
+  }, table => [primaryKey({ columns: [table.id, table.scope] })])
   const revisions = schema.table('tunables_revisions', {
     id: bigserial('id', { mode: 'bigint' }).primaryKey(),
     targetKind: text('target_kind').notNull(),

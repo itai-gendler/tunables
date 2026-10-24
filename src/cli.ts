@@ -164,17 +164,22 @@ function createProgram(setExitCode: (code: number) => void): Command {
     .summary('Print stored values')
     .description('Print a group\'s stored values, or one of them, with any that differ from their default.')
     .option('--json', 'Write the values as JSON')
-    .action(async (group: string, key: string | undefined, options: { json?: boolean }, command: Command) => {
+    .option('--scope <path>', 'Read at a scope, as workspace=w1,user=u7')
+    .option('--url <url>', 'Use the app\'s tunables API instead of tunables.config.ts (or TUNABLES_URL); TUNABLES_TOKEN is sent as a bearer token')
+    .action(async (group: string, key: string | undefined, options: { json?: boolean, scope?: string, url?: string }, command: Command) => {
       setExitCode(await runGet(cwdFor(command), group, key, { ...configOf(command), ...options }))
     })
 
   program
-    .command('set <group> <assignments...>')
+    .command('set <group> [assignments...]')
     .summary('Change values, checked and recorded')
     .description('Change values as key=value (JSON for ranges and sizes), through the same checks as the screens, recorded with you and a reason.')
     .requiredOption('--reason <text>', 'Why, kept in the history')
     .option('--yes', 'Confirm a change that asks to be confirmed')
-    .action(async (group: string, assignments: string[], options: { reason?: string, yes?: boolean }, command: Command) => {
+    .option('--scope <path>', 'Set values for a scope, as workspace=w1,user=u7')
+    .option('--inherit <keys>', 'At --scope, use the inherited value again for these comma-separated keys')
+    .option('--url <url>', 'Use the app\'s tunables API instead of tunables.config.ts (or TUNABLES_URL); TUNABLES_TOKEN is sent as a bearer token')
+    .action(async (group: string, assignments: string[], options: { reason?: string, yes?: boolean, scope?: string, inherit?: string, url?: string }, command: Command) => {
       setExitCode(await runSet(cwdFor(command), group, assignments, { ...configOf(command), ...options }))
     })
 
@@ -184,7 +189,9 @@ function createProgram(setExitCode: (code: number) => void): Command {
     .description('Show a group\'s revisions, newest first: who, when, why, and each value before and after.')
     .option('--limit <count>', 'How many revisions to show', positiveInteger)
     .option('--json', 'Write the revisions as JSON')
-    .action(async (group: string, options: { limit?: number, json?: boolean }, command: Command) => {
+    .option('--scope <path>', 'Show a scope\'s revisions, as workspace=w1,user=u7')
+    .option('--url <url>', 'Use the app\'s tunables API instead of tunables.config.ts (or TUNABLES_URL); TUNABLES_TOKEN is sent as a bearer token')
+    .action(async (group: string, options: { limit?: number, json?: boolean, scope?: string, url?: string }, command: Command) => {
       setExitCode(await runHistory(cwdFor(command), group, { ...configOf(command), ...options }))
     })
 
@@ -194,7 +201,8 @@ function createProgram(setExitCode: (code: number) => void): Command {
     .description('Put a group back as it was after an earlier revision, through the same checks as any save.')
     .requiredOption('--reason <text>', 'Why, kept in the history')
     .option('--yes', 'Confirm a restore that asks to be confirmed')
-    .action(async (revision: string, options: { reason?: string, yes?: boolean }, command: Command) => {
+    .option('--url <url>', 'Use the app\'s tunables API instead of tunables.config.ts (or TUNABLES_URL); TUNABLES_TOKEN is sent as a bearer token')
+    .action(async (revision: string, options: { reason?: string, yes?: boolean, url?: string }, command: Command) => {
       setExitCode(await runRestore(cwdFor(command), revision, { ...configOf(command), ...options }))
     })
 

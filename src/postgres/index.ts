@@ -135,10 +135,12 @@ export function tunablesSql(options: { schema?: string } = {}): string {
   return `create schema if not exists ${s};
 
 create table if not exists ${s}.tunables_groups (
-  id text primary key,
+  id text not null,
+  scope text not null default '',
   "values" jsonb not null,
   updated_at timestamptz,
-  updated_by text
+  updated_by text,
+  primary key (id, scope)
 );
 
 create table if not exists ${s}.tunables_revisions (
@@ -178,10 +180,27 @@ create index if not exists tunables_assignments_record_idx
 `
 }
 
-/** Create tunables' tables if they are not there. Safe to run on every deploy. */
+/**
+ * Create tunables' tables if they are not there, and bring tables an earlier
+ * version created up to date. Safe to run on every deploy.
+ */
 export async function migrate(client: SqlExecutor, options: { schema?: string } = {}): Promise<void> {
+  const schema = options.schema ?? 'tunables'
   for (const statement of tunablesSql(options).split(/;\s*\n/).map(part => part.trim()).filter(Boolean)) {
     await client.query(statement)
+  }
+  // 0.1.0 kept one row per group, keyed by id alone; scopes key it by (id, scope).
+  const s = quoted(schema)
+  await client.query(`alter table ${s}.tunables_groups add column if not exists scope text not null default ''`)
+  const keyed = await client.query<{ column_name: string }>(
+    `select kcu.column_name from information_schema.table_constraints tc
+     join information_schema.key_column_usage kcu on kcu.constraint_name = tc.constraint_name and kcu.table_schema = tc.table_schema
+     where tc.table_schema = $1 and tc.table_name = 'tunables_groups' and tc.constraint_type = 'PRIMARY KEY'`,
+    [schema]
+  )
+  if (keyed.length === 1) {
+    await client.query(`alter table ${s}.tunables_groups drop constraint tunables_groups_pkey`)
+    await client.query(`alter table ${s}.tunables_groups add primary key (id, scope)`)
   }
 }
 
@@ -192,6 +211,16 @@ const iso = (value: unknown): string | null => {
   return value instanceof Date ? value.toISOString() : new Date(String(value)).toISOString()
 }
 const json = (value: unknown) => JSON.stringify(value ?? null)
+
+interface GroupRow {
+  id: string
+  scope: string
+  values: Record<string, unknown>
+  updated_at: unknown
+  updated_by: string | null
+}
+
+const toGroup = (row: GroupRow): StoredGroup => ({ id: row.id, scope: row.scope, values: row.values, updatedAt: iso(row.updated_at), updatedBy: row.updated_by })
 
 interface RevisionRow {
   id: string
@@ -221,18 +250,25 @@ function session(db: SqlExecutor, schema: string, lockKey: number): StoreSession
     async lock(mode) {
       await db.query(mode === 'shared' ? 'select pg_advisory_xact_lock_shared($1::bigint)' : 'select pg_advisory_xact_lock($1::bigint)', [lockKey])
     },
-    async readGroups(ids) {
+    async readGroups(ids, scope = '') {
       const rows = ids
-        ? await db.query<{ id: string, values: Record<string, unknown>, updated_at: unknown, updated_by: string | null }>(`select id, "values", updated_at, updated_by from ${s}.tunables_groups where id = any($1::text[]) order by id`, [[...ids]])
-        : await db.query<{ id: string, values: Record<string, unknown>, updated_at: unknown, updated_by: string | null }>(`select id, "values", updated_at, updated_by from ${s}.tunables_groups order by id`)
-      return rows.map((row): StoredGroup => ({ id: row.id, values: row.values, updatedAt: iso(row.updated_at), updatedBy: row.updated_by }))
+        ? await db.query<GroupRow>(`select id, scope, "values", updated_at, updated_by from ${s}.tunables_groups where scope = $1 and id = any($2::text[]) order by id`, [scope, [...ids]])
+        : await db.query<GroupRow>(`select id, scope, "values", updated_at, updated_by from ${s}.tunables_groups where scope = $1 order by id`, [scope])
+      return rows.map(toGroup)
+    },
+    async readScopes(id) {
+      const rows = await db.query<GroupRow>(`select id, scope, "values", updated_at, updated_by from ${s}.tunables_groups where id = $1 and scope <> '' order by scope`, [id])
+      return rows.map(toGroup)
     },
     async writeGroup(group) {
       await db.query(
-        `insert into ${s}.tunables_groups (id, "values", updated_at, updated_by) values ($1, $2::text::jsonb, $3::timestamptz, $4)
-         on conflict (id) do update set "values" = excluded."values", updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
-        [group.id, json(group.values), group.updatedAt, group.updatedBy]
+        `insert into ${s}.tunables_groups (id, scope, "values", updated_at, updated_by) values ($1, $2, $3::text::jsonb, $4::timestamptz, $5)
+         on conflict (id, scope) do update set "values" = excluded."values", updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
+        [group.id, group.scope, json(group.values), group.updatedAt, group.updatedBy]
       )
+    },
+    async deleteGroup(id, scope) {
+      await db.query(`delete from ${s}.tunables_groups where id = $1 and scope = $2`, [id, scope])
     },
     async appendRevision(revision: NewRevision) {
       const [row] = await db.query<RevisionRow>(

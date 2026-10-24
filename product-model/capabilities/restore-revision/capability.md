@@ -15,7 +15,8 @@ references:
 
 # Restore a revision
 
-Puts a settings group back as it was after an earlier revision, through the
-same checks and confirmation as any change, and records it as a new revision
-whose reason names the one restored. Only a settings group's revisions are
+Puts a settings group back as it was after an earlier revision, the system's
+values or one scope's override, through the same checks and confirmation as any
+change there, and records it as a new revision on the same target whose reason
+names the one restored. Only a settings group's revisions are
 restored; those of presets, catalog entries and assignments are history.

@@ -19,6 +19,12 @@ export interface FieldInfo {
   section?: string
   /** What changing the field changes, by effect id. */
   affects?: readonly string[]
+  /**
+   * Where the field may take its own value: a list of scopes, overridden freely,
+   * or per scope `'free'`, `'at-most'` or `'at-least'` the value it inherits.
+   * Without it, the field is set only for the whole system. See spec/scopes.md.
+   */
+  override?: readonly string[] | Readonly<Record<string, 'free' | 'at-most' | 'at-least'>>
 }
 
 export interface Choice {

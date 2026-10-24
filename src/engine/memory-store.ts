@@ -20,6 +20,7 @@ interface State {
 
 const clone = <T>(value: T): T => structuredClone(value)
 const recordKey = (collection: string, id: string) => `${collection}\u0000${id}`
+const groupKey = (id: string, scope: string) => `${id}\u0000${scope}`
 const assignmentKey = (collection: string, subject: string, slot: string) => `${collection}\u0000${subject}\u0000${slot}`
 const sameTarget = (a: RevisionTarget, b: RevisionTarget) => a.kind === b.kind && a.name === b.name && (a.id ?? null) === (b.id ?? null)
 
@@ -36,12 +37,19 @@ function copyState(state: State): State {
 function sessionOver(state: () => State, lock: (mode: 'shared' | 'exclusive') => Promise<void>, now: () => Date): StoreSession {
   return {
     lock,
-    async readGroups(ids) {
-      const all = [...state().groups.values()]
+    async readGroups(ids, scope = '') {
+      const all = [...state().groups.values()].filter(group => group.scope === scope)
       return clone(ids ? all.filter(group => ids.includes(group.id)) : all)
     },
+    async readScopes(id) {
+      return clone([...state().groups.values()].filter(group => group.id === id && group.scope !== '')
+        .sort((a, b) => a.scope.localeCompare(b.scope)))
+    },
     async writeGroup(group) {
-      state().groups.set(group.id, clone(group))
+      state().groups.set(groupKey(group.id, group.scope), clone(group))
+    },
+    async deleteGroup(id, scope) {
+      state().groups.delete(groupKey(id, scope))
     },
     async appendRevision(revision: NewRevision) {
       const current = state()

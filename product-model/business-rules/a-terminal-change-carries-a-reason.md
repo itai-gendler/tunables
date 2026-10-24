@@ -2,6 +2,8 @@
 appliesTo:
   - { type: capability, id: change-settings, contexts: [{ place: tunables-cli }] }
   - { type: capability, id: restore-revision, contexts: [{ place: tunables-cli }] }
+  - { type: capability, id: override-settings, contexts: [{ place: tunables-cli }] }
+  - { type: capability, id: use-inherited-values, contexts: [{ place: tunables-cli }] }
 references:
   - kind: code
     role: implementation
@@ -10,7 +12,8 @@ references:
 
 # A terminal change carries a reason
 
-A change or a restore made from a terminal always gives a reason, kept on its
+A change or a restore made from a terminal, for the whole system or at a scope,
+always gives a reason, kept on its
 revision; without one, nothing is attempted.
 
 ## Rationale

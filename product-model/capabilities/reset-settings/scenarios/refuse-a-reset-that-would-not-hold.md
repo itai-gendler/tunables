@@ -40,3 +40,7 @@ A limit was raised above its default, and a preset now uses the room.
 ## Outcome
 
 The group stays as it was; a default gets no exemption from the checks.
+
+## Edge cases
+
+- A default that would leave a scope's override outside its bound is refused the same way, naming the scope.

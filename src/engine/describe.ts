@@ -2,6 +2,7 @@ import { fieldLabel, formatValue, type Field, type Fields } from '../model/kinds
 import type { AnyCatalog, AnyGroup, AnyPresets, Effects } from '../model/definitions.js'
 import { explain, type Explanations } from '../model/explanations.js'
 import type { Unit } from '../model/units.js'
+import { overrideRules, type OverrideRule } from './scopes.js'
 
 /**
  * What the screens need to know about the definitions, as plain JSON: every
@@ -33,6 +34,8 @@ export interface FieldDescription {
   catalog?: string
   default: unknown
   defaultDisplay: string
+  /** Where the field may take its own value, and how: `{ workspace: 'at-most', user: 'free' }`. */
+  overrides: Record<string, OverrideRule>
 }
 
 interface Described {
@@ -54,6 +57,8 @@ export interface PresetsDescription extends Described {
   type: 'presets'
   singular: string
   slots: string[]
+  /** When the set is a layer of a group, such as Plans of Limits. */
+  layer?: { group: string, scope: string, slot: string }
 }
 
 export interface CatalogDescription extends Described {
@@ -64,6 +69,8 @@ export interface CatalogDescription extends Described {
 }
 
 export interface Description {
+  /** The chain of scopes, broadest first. */
+  scopes: string[]
   groups: GroupDescription[]
   presets: PresetsDescription[]
   catalogs: CatalogDescription[]
@@ -84,7 +91,8 @@ export function describeFields(fields: Fields, entity: string | undefined, expla
       section: field.section,
       affects: [...(field.affects ?? [])],
       default: field.default,
-      defaultDisplay: formatValue(field, field.default, unitOf)
+      defaultDisplay: formatValue(field, field.default, unitOf),
+      overrides: overrideRules(field)
     }
     if (field.kind === 'number' || field.kind === 'range') {
       const unit = unitOf(field.unit)
@@ -109,18 +117,20 @@ export function describeFields(fields: Fields, entity: string | undefined, expla
 const sectionsOf = (fields: FieldDescription[]) => [...new Set(fields.map(field => field.section).filter((section): section is string => Boolean(section)))]
 
 export function describe(
-  definitions: { groups: readonly AnyGroup[], presets: readonly AnyPresets[], catalogs: readonly AnyCatalog[], effects: Effects },
+  definitions: { groups: readonly AnyGroup[], presets: readonly AnyPresets[], catalogs: readonly AnyCatalog[], effects: Effects, scopes?: readonly string[] },
   explanations: Explanations | undefined,
   unitOf: (id: string) => Unit | undefined
 ): Description {
   return {
+    scopes: [...(definitions.scopes ?? [])],
     groups: definitions.groups.map((group) => {
       const fields = describeFields(group.fields, group.entity, explanations, unitOf)
       return { type: 'group', id: group.id, title: group.title, description: group.description, entity: group.entity, place: group.place, sections: sectionsOf(fields), fields }
     }),
     presets: definitions.presets.map((set) => {
       const fields = describeFields(set.fields, set.entity, explanations, unitOf)
-      return { type: 'presets', id: set.id, title: set.title, singular: set.singular, description: set.description, entity: set.entity, place: set.place, slots: [...set.slots], sections: sectionsOf(fields), fields }
+      const layer = set.layer ? { group: set.layer.group, scope: set.layer.scope, slot: set.layer.slot ?? set.slots[0]! } : undefined
+      return { type: 'presets', id: set.id, title: set.title, singular: set.singular, description: set.description, entity: set.entity, place: set.place, slots: [...set.slots], layer, sections: sectionsOf(fields), fields }
     }),
     catalogs: definitions.catalogs.map((catalog) => {
       const fields = describeFields(catalog.fields, catalog.entity, explanations, unitOf)

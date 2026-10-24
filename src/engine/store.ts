@@ -13,6 +13,12 @@
 
 export interface StoredGroup {
   id: string
+  /**
+   * Where in the chain of scopes the row sits: `''` for the system, which holds
+   * every field, or a scope key such as `workspace=w1;user=u7`, which holds only
+   * the fields overridden there. See spec/scopes.md.
+   */
+  scope: string
   values: Record<string, unknown>
   updatedAt: string | null
   updatedBy: string | null
@@ -76,8 +82,13 @@ export interface StoreSession {
    * lowered under it.
    */
   lock(mode: 'shared' | 'exclusive'): Promise<void>
-  readGroups(ids?: readonly string[]): Promise<StoredGroup[]>
+  /** Rows at one scope, the system's by default. */
+  readGroups(ids?: readonly string[], scope?: string): Promise<StoredGroup[]>
+  /** Every scoped row of a group (not the system row), in key order. */
+  readScopes(id: string): Promise<StoredGroup[]>
   writeGroup(group: StoredGroup): Promise<void>
+  /** Remove a scoped row once it overrides nothing. */
+  deleteGroup(id: string, scope: string): Promise<void>
   appendRevision(revision: NewRevision): Promise<Revision>
   listRevisions(target: RevisionTarget, query: RevisionQuery): Promise<Revision[]>
   getRevision(id: string): Promise<Revision | undefined>

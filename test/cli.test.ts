@@ -18,7 +18,7 @@ describe('the command', () => {
 
   it('answers a usage mistake with exit code 2', async () => {
     expect((await tunables(['moon'])).code).toBe(2)
-    expect((await tunables(['--cwd', 'fixture', 'set', 'run', 'turnsLimit=1'])).code).toBe(2)
+    expect((await tunables(['--cwd', 'test/fixtures/news', 'set', 'run', 'turnsLimit=1'])).code).toBe(2)
     const nowhere = mkdtempSync(join(tmpdir(), 'tunables-none-'))
     cleanup.push(() => rmSync(nowhere, { recursive: true, force: true }))
     const missing = await tunables(['check'], { cwd: nowhere })
@@ -29,7 +29,7 @@ describe('the command', () => {
 
 describe('check', () => {
   it('passes on the fixture: news\'s definitions agree with news\'s Product Model', async () => {
-    const result = await tunables(['--cwd', 'fixture', 'check'])
+    const result = await tunables(['--cwd', 'test/fixtures/news', 'check'])
     expect(result.stdout).toContain('every field\'s fact and default agree with the Product Model')
     expect(result.code).toBe(0)
   })

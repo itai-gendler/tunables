@@ -86,6 +86,7 @@ export type {
   ChangeOptions,
   Outcome,
   GroupEntry,
+  FieldLayer,
   SyncReport,
   Guard,
   GuardArgs,
@@ -93,6 +94,8 @@ export type {
   UsesProvider
 } from './engine/tunables.js'
 export type { Description, GroupDescription, PresetsDescription, CatalogDescription, FieldDescription } from './engine/describe.js'
+export { scopeEntries, scopeKey, parseScopeKey } from './engine/scopes.js'
+export type { ScopePath, OverrideRule } from './engine/scopes.js'
 export { memoryStore } from './engine/memory-store.js'
 export type {
   TunablesStore,

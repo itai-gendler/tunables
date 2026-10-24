@@ -46,3 +46,4 @@ with the reason it was made.
 - Without a reason nothing is attempted, and the Product says one is needed.
 - A change that asks to be confirmed is asked about in an interactive terminal, and needs an explicit yes from a script.
 - A refused change prints each problem and fails.
+- Given the app's API address and a token, the change goes through the app's HTTP API instead: the app's access policy decides whether the token may make it, and the revision names whoever the app says the token is.

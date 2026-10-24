@@ -2,6 +2,7 @@ import { computed, inject, onBeforeUnmount, onMounted, provide, reactive, ref, s
 import type { CatalogEntrySummary, PresetSummary, TunablesClient } from '../client/index.js'
 import type { Description, FieldDescription, GroupDescription } from '../engine/describe.js'
 import type { GroupEntry, Outcome } from '../engine/tunables.js'
+import type { ScopePath } from '../engine/scopes.js'
 import type { Revision, RevisionTarget } from '../engine/store.js'
 import type { Problem } from '../model/definitions.js'
 
@@ -63,9 +64,13 @@ export function useTunablesDescription() {
  * differ, the problems the last save answered with, and a confirmation the
  * server asked for.
  */
-export function useGroupForm(groupId: Ref<string> | string) {
+export function useGroupForm(groupId: Ref<string> | string, options: { scope?: Ref<ScopePath | undefined> | ScopePath } = {}) {
   const client = useTunablesClient()
   const id = computed(() => typeof groupId === 'string' ? groupId : groupId.value)
+  const scope = computed<ScopePath | undefined>(() => {
+    const value = options.scope && 'value' in options.scope ? (options.scope as Ref<ScopePath | undefined>).value : options.scope as ScopePath | undefined
+    return value && Object.keys(value).length ? value : undefined
+  })
   const { description, error: describeError } = useTunablesDescription()
   const group = computed<GroupDescription | undefined>(() => description.value?.groups.find(item => item.id === id.value))
   const entry = shallowRef<GroupEntry>()
@@ -82,12 +87,26 @@ export function useGroupForm(groupId: Ref<string> | string) {
     entry.value = next
     for (const key of Object.keys(draft)) delete draft[key]
     Object.assign(draft, clone(next.values))
+    inheriting.clear()
+  }
+
+  /** At a scope: stop setting a field here, and use what it inherits. */
+  function useInherited(key: string) {
+    const layer = entry.value?.layers?.[key]
+    if (!layer) return
+    inheriting.add(key)
+    draft[key] = clone(layer.inherited)
+  }
+
+  /** At a scope: set a field here again, starting from what it inherits. */
+  function setHere(key: string) {
+    inheriting.delete(key)
   }
 
   async function refresh() {
     loading.value = true
     try {
-      adopt(await client.group(id.value))
+      adopt(await client.group(id.value, scope.value))
       error.value = undefined
     } catch (caught) {
       error.value = failure(caught)
@@ -96,7 +115,20 @@ export function useGroupForm(groupId: Ref<string> | string) {
     }
   }
 
-  const dirtyKeys = computed(() => entry.value ? Object.keys(entry.value.values as Record<string, unknown>).filter(key => !same(draft[key], (entry.value!.values as Record<string, unknown>)[key])) : [])
+  /** At a scope, the fields it may set; for the system, every field. */
+  const editable = computed(() => entry.value?.layers ? Object.keys(entry.value.layers) : Object.keys(entry.value?.values ?? {}))
+  /** At a scope: the fields that will use the inherited value again on save. */
+  const inheriting = reactive(new Set<string>())
+  const dirtyKeys = computed(() => {
+    if (!entry.value) return []
+    const stored = entry.value.values as Record<string, unknown>
+    if (!entry.value.layers) return Object.keys(stored).filter(key => !same(draft[key], stored[key]))
+    return editable.value.filter((key) => {
+      const layer = entry.value!.layers![key]!
+      if (inheriting.has(key)) return layer.overridden
+      return !same(draft[key], stored[key]) || (!layer.overridden && !same(draft[key], layer.inherited))
+    })
+  })
   const dirty = computed(() => dirtyKeys.value.length > 0)
 
   function fieldProblems(key: string): string[] {
@@ -115,16 +147,17 @@ export function useGroupForm(groupId: Ref<string> | string) {
 
   function discard() {
     if (entry.value) adopt(entry.value)
+    inheriting.clear()
     problems.value = []
     confirm.value = undefined
   }
 
-  async function save(options: { confirmed?: boolean } = {}): Promise<boolean> {
+  async function save(saveOptions: { confirmed?: boolean } = {}): Promise<boolean> {
     if (!entry.value) return false
     saving.value = true
     try {
-      const values = Object.fromEntries(dirtyKeys.value.map(key => [key, clone(draft[key])]))
-      const outcome = await client.save(id.value, { values, reason: reason.value.trim() || undefined, confirmed: options.confirmed })
+      const values = Object.fromEntries(dirtyKeys.value.map(key => [key, inheriting.has(key) ? null : clone(draft[key])]))
+      const outcome = await client.save(id.value, { values, reason: reason.value.trim() || undefined, confirmed: saveOptions.confirmed, scope: scope.value })
       lastSaved.value = outcome
       problems.value = outcome.problems
       confirm.value = outcome.confirm
@@ -142,12 +175,17 @@ export function useGroupForm(groupId: Ref<string> | string) {
     }
   }
 
-  watch(id, () => refresh())
+  watch([id, scope], () => refresh(), { deep: true })
   onMounted(refresh)
 
   return {
     group,
     entry,
+    scope,
+    editable,
+    inheriting,
+    useInherited,
+    setHere,
     draft,
     dirty,
     dirtyKeys,
@@ -329,4 +367,6 @@ export type { TunablesClient, PresetSummary, CatalogEntrySummary } from '../clie
 export type { Description, FieldDescription, GroupDescription, PresetsDescription, CatalogDescription } from '../engine/describe.js'
 export type { GroupEntry, Outcome } from '../engine/tunables.js'
 export type { Revision, RevisionTarget } from '../engine/store.js'
+export type { ScopePath } from '../engine/scopes.js'
+export type { FieldLayer } from '../engine/tunables.js'
 export type { Problem } from '../model/definitions.js'

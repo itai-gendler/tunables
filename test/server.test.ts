@@ -8,7 +8,7 @@ import { createHandler } from '../src/server/index.js'
 import { tunablesMiddleware } from '../src/server/express.js'
 import { tunablesRouter } from '../src/server/orpc.js'
 import { fetchClient, orpcClient, TunablesClientError, type TunablesClient } from '../src/client/index.js'
-import { catalogs, effects, feedsAbove, groups, presets, units } from '../fixture/news.js'
+import { catalogs, effects, feedsAbove, groups, presets, units } from './fixtures/news/news.js'
 
 /** Who the test request says it is: an administrator, a reader, or nobody. */
 type Who = 'admin' | 'reader' | 'nobody'

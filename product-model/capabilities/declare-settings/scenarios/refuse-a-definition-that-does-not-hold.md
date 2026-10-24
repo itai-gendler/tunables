@@ -40,3 +40,5 @@ knows exactly which setting to fix.
 
 - Two groups, preset sets or catalogs with one id are refused the same way.
 - A preset set with no slots is refused.
+- A setting overridable at a scope the app does not declare, a bound at most or at least on a setting that is not a number, and a plan at a scope the app does not declare are refused naming the scope or setting.
+- A plan whose presets set a setting the group does not hold, or hold it as another kind, is refused.

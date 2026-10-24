@@ -103,8 +103,8 @@ jobs:
           # The packaged files are what the exports name.
           tar -tzf "$tarball" | grep '^package/layers/nuxt/tunables/nuxt.config.ts$' >/dev/null
           tar -tzf "$tarball" | grep '^package/skills/tunables-define/SKILL.md$' >/dev/null
-          if tar -tzf "$tarball" | grep -E '^package/(playground|site|fixture|test)/' >/dev/null; then
-            echo 'The playground, site, fixture and tests must not be packaged.' >&2
+          if tar -tzf "$tarball" | grep -E '^package/(playground|site|examples|test)/' >/dev/null; then
+            echo 'The playground, site, examples and tests must not be packaged.' >&2
             exit 1
           fi
 

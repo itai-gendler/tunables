@@ -69,6 +69,13 @@ export interface PresetsDefinition<Id extends string = string, F extends Fields 
   rules?(values: ValuesOf<F>, catalogs: CatalogView): RuleResult
   /** How the settings bound a preset. Checked when a preset is saved and when a setting is lowered. */
   within?(values: ValuesOf<F>, settings: SettingsView): RuleResult
+  /**
+   * Makes the set a layer of a group, such as Plans of Limits: the preset a
+   * subject of `scope` is assigned in `slot` (the first slot by default), or the
+   * slot's default, sits between the system value and that scope's own. The
+   * set's fields must be fields of the group, of the same kinds.
+   */
+  layer?: { group: string, scope: string, slot?: Slot }
   /** Presets `sync` creates when a slot has no default. Absent: one per slot, from the field defaults. */
   seed?: readonly { key: string, slot: Slot, label: string, values?: Partial<ValuesOf<F>> }[]
 }

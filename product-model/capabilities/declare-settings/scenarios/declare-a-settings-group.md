@@ -8,7 +8,7 @@ steps:
     actor: developer
     entities:
       - { entity: settings-group, effect: creates, facts: [Title, Description, Place, Rules, Confirmation] }
-      - { entity: setting, effect: creates, with: settings-group, facts: [Key, Label, Kind, Unit, Allowed values, Default, Fact, Section, Effects] }
+      - { entity: setting, effect: creates, with: settings-group, facts: [Key, Label, Kind, Unit, Allowed values, Default, Fact, Section, Effects, Override scopes, Override bound] }
     contexts:
       code:
         place: library
@@ -51,4 +51,5 @@ synced.
 
 - A preset set is declared the same way, with its slots, how the settings bound a preset, and the presets a slot starts with.
 - A catalog is declared the same way, with what its entries are called and the entries an empty catalog starts with.
+- The host app declares its chain of scopes, broadest first, when it creates its tunables, and a setting declares the scopes it may be overridden at and its bound at each; a preset set may be declared the plan of a group at one scope.
 - A unit the app needs, such as a currency, is declared beside the built-in ones and bounds every value measured in it.

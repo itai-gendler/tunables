@@ -31,7 +31,7 @@ jobs:
       - run: pnpm verify
       # The fixture is news as tunables holds it; its facts and defaults must
       # agree with news's own Product Model.
-      - run: node dist/cli.js --cwd fixture check
+      - run: node dist/cli.js --cwd test/fixtures/news check
 
   integration:
     runs-on: ubuntu-latest

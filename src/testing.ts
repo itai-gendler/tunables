@@ -31,7 +31,7 @@ export async function setForTest(
       if (unknown.length) throw new Error(`${group.title} has no ${unknown.join(', ')}.`)
       const [row] = await session.readGroups([id])
       const next = { ...defaultsOf(group.fields), ...row?.values, ...changes }
-      await session.writeGroup({ id, values: next, updatedAt: new Date().toISOString(), updatedBy: 'test' })
+      await session.writeGroup({ id, scope: '', values: next, updatedAt: new Date().toISOString(), updatedBy: 'test' })
       await session.appendRevision({
         target: { kind: 'group', name: id },
         actor: 'test',

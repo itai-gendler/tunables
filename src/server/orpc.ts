@@ -33,7 +33,7 @@ export function tunablesRouter<Context extends Record<PropertyKey, any>>(options
   return {
     describe: base.handler(({ context }) => run(() => service.describe(context))),
     overview: base.handler(({ context }) => run(() => service.overview(context))),
-    group: base.input(id).handler(({ context, input }) => run(() => service.group(context, input.id))),
+    group: base.input(id.extend({ scope: z.union([z.record(z.string(), z.string()), z.string()]).optional() })).handler(({ context, input }) => run(() => service.group(context, input.id, { scope: input.scope }))),
     save: base.input(inputs.save.extend({ id: z.string() })).handler(({ context, input }) => run(() => service.save(context, input.id, input))),
     reset: base.input(inputs.reset.extend({ id: z.string() })).handler(({ context, input }) => run(() => service.reset(context, input.id, input))),
     history: base.input(inputs.history).handler(({ context, input }) => run(() => service.history(context, input))),

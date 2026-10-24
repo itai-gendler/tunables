@@ -10,7 +10,7 @@ import {
   type FixtureFeedList,
   type TunablesStore
 } from '../support.js'
-import { catalogs, collection, collectionNotes, effects, feedsAbove, groups, presets, readers, units } from '../../fixture/news.js'
+import { catalogs, collection, collectionNotes, effects, feedsAbove, groups, presets, readers, units } from '../fixtures/news/news.js'
 
 /** A store under test, made empty for each test, with a switch that makes its reads fail. */
 export interface StoreUnderTest {
@@ -87,7 +87,7 @@ describe('reading', () => {
 
   it('reports a field the stored group lacks instead of falling back to its default', async () => {
     const store = memoryStore()
-    await store.writeGroup({ id: 'readers', values: { briefsPerReader: 3 }, updatedAt: null, updatedBy: null })
+    await store.writeGroup({ id: 'readers', scope: '', values: { briefsPerReader: 3 }, updatedAt: null, updatedBy: null })
     const partial = createTunables({ store, groups: [readers], effects })
     await expect(partial.get('readers')).rejects.toThrow(/lack feedsPerBrief/)
     const report = await partial.sync()
@@ -97,7 +97,7 @@ describe('reading', () => {
 
   it('keeps unknown stored fields and reports them', async () => {
     const store = memoryStore()
-    await store.writeGroup({ id: 'readers', values: { ...defaultsOf(readers.fields), briefsPerReader: 3, retired: 1 }, updatedAt: null, updatedBy: null })
+    await store.writeGroup({ id: 'readers', scope: '', values: { ...defaultsOf(readers.fields), briefsPerReader: 3, retired: 1 }, updatedAt: null, updatedBy: null })
     const report = await createTunables({ store, groups: [readers], effects }).sync()
     expect(report.unknown).toEqual([{ group: 'readers', key: 'retired' }])
     expect((await store.readGroups(['readers']))[0]!.values.retired).toBe(1)

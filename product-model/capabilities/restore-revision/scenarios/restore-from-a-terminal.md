@@ -36,3 +36,5 @@ the reason it was restored.
 
 - Without a reason nothing is attempted, and the Product says one is needed.
 - A restore that asks to be confirmed needs an explicit yes.
+- A scope's revision puts back that scope's own values exactly, checked like any change at that scope.
+- Given the app's API address and a token, the restore goes through the app's HTTP API, allowed and recorded as the app says for that token.

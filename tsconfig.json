@@ -28,6 +28,7 @@
   "include": [
     "src",
     "test/**/*.ts",
+    "examples/**/*.ts",
     "tsdown.config.ts",
     "vitest.config.ts",
     "vitest.integration.config.ts"

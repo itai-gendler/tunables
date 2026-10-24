@@ -13,7 +13,7 @@ import {
 import { setForTest, testTunables } from '../src/testing.js'
 import { checkAgainstModel, draftFacts, readModelFacts, renderExplanations, sameDefault } from '../src/pdd/index.js'
 import { displayValue } from '../src/client/format.js'
-import { catalogs, effects, groups, models, presets, run, units } from '../fixture/news.js'
+import { catalogs, effects, groups, models, presets, run, units } from './fixtures/news/news.js'
 
 describe('deployment values', () => {
   const environment = defineEnvironment({
@@ -107,7 +107,7 @@ describe('testing kit', () => {
 })
 
 describe('Product Model link', () => {
-  const directory = join(import.meta.dirname, '../fixture/product-model')
+  const directory = join(import.meta.dirname, 'fixtures/news/product-model')
 
   it('reads each fact with its text and the default it states', async () => {
     const model = await readModelFacts(directory)
@@ -144,7 +144,7 @@ describe('Product Model link', () => {
 
 describe('the model\'s words win', () => {
   it('shows the model\'s explanation over a field\'s own help, and check reports the duplicate and a fact with no Entity', async () => {
-    const model = await readModelFacts(join(import.meta.dirname, '../fixture/product-model'))
+    const model = await readModelFacts(join(import.meta.dirname, 'fixtures/news/product-model'))
     const { rules: _rules, confirm: _confirm, ...plain } = run
     const retyped = defineGroup({ ...plain, fields: { ...run.fields, budgetLimitUsd: { ...run.fields.budgetLimitUsd, help: 'Retyped help.' } } })
     const loose = defineGroup({ id: 'loose', title: 'Loose', fields: { n: { ...run.fields.turnsLimit } } })

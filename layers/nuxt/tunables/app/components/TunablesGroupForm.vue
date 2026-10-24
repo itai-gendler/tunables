@@ -1,29 +1,41 @@
 <script setup lang="ts">
-import { useGroupForm, useTunablesClient, useTunablesDescription, type CatalogEntrySummary, type FieldDescription } from 'tunables/vue'
+import { useGroupForm, useTunablesClient, useTunablesDescription, type CatalogEntrySummary, type FieldDescription, type ScopePath } from 'tunables/vue'
 
 /**
  * A settings group, edited beside what it affects: every field by section, with
  * its explanation and default; one save that is checked whole; a confirmation
  * when the change has consequences; and the group's history.
+ *
+ * Given a `scope`, it edits that scope's own values: only the fields it may set,
+ * each with what it inherits and from where, and a way to use that again.
  */
-const props = withDefaults(defineProps<{ group: string, history?: boolean }>(), { history: true })
+const props = withDefaults(defineProps<{ group: string, scope?: ScopePath, history?: boolean }>(), { history: true })
 
-const form = useGroupForm(toRef(props, 'group'))
+const form = useGroupForm(toRef(props, 'group'), { scope: toRef(props, 'scope') })
 const { description } = useTunablesDescription()
 useTunablesLeaveGuard(form.dirty)
 
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 const sections = computed(() => {
-  const group = form.group.value
-  if (!group) return []
+  const described = form.group.value
+  if (!described) return []
+  const layers = form.entry.value?.layers
+  const group = layers ? { ...described, fields: described.fields.filter(field => field.key in layers) } : described
   const named = group.sections.map(name => ({ name, anchor: `tunables-${group.id}-${slug(name)}`, fields: group.fields.filter(field => field.section === name) }))
   const loose = group.fields.filter(field => !field.section)
-  return loose.length ? [{ name: 'General', anchor: `tunables-${group.id}-general`, fields: loose }, ...named] : named
+  const all = loose.length ? [{ name: 'General', anchor: `tunables-${group.id}-general`, fields: loose }, ...named] : named
+  return all.filter(section => section.fields.length)
 })
-// A pick setting chooses from its catalog's Available entries.
+const scoped = computed(() => form.entry.value?.scope)
+const historyTarget = computed(() => scoped.value ? { kind: 'group' as const, name: props.group, id: scoped.value.key } : { kind: 'group' as const, name: props.group })
+function edit(field: FieldDescription, value: unknown) {
+  form.draft[field.key] = value
+  form.setHere(field.key)
+}
+// A pick setting chooses from its catalog's Available entries; only the fields shown ask for theirs.
 const client = useTunablesClient()
 const catalogEntries = ref<Record<string, CatalogEntrySummary[]>>({})
-watch(() => form.group.value?.fields.filter(field => field.kind === 'pick').map(field => field.catalog!) ?? [], async (ids) => {
+watch(() => sections.value.flatMap(section => section.fields).filter(field => field.kind === 'pick').map(field => field.catalog!), async (ids) => {
   for (const id of new Set(ids)) {
     if (!catalogEntries.value[id]) catalogEntries.value = { ...catalogEntries.value, [id]: await client.catalog(id) }
   }
@@ -57,9 +69,13 @@ async function confirmAndSave() {
       <div class="min-w-0">
         <h2 class="text-lg font-semibold text-highlighted">
           {{ form.group.value?.title ?? 'Settings' }}
+          <UBadge v-if="scoped" class="ms-2 align-middle" color="neutral" variant="subtle" :label="scoped.label" />
         </h2>
         <p v-if="form.group.value?.description" class="mt-1 max-w-prose text-sm text-muted">
           {{ form.group.value.description }}
+        </p>
+        <p v-if="scoped && !sections.length && !form.loading.value" class="mt-1 text-sm text-muted">
+          Nothing in this group can be set for {{ scoped.label }}.
         </p>
         <p v-if="form.entry.value?.updatedAt" class="mt-1 text-xs text-muted" data-tunables-time>
           Last changed {{ tunablesTime(form.entry.value.updatedAt) }}<template v-if="form.entry.value.updatedBy">
@@ -92,7 +108,7 @@ async function confirmAndSave() {
       <USkeleton v-for="n in 4" :key="n" class="h-12 w-full" />
     </div>
 
-    <div v-else-if="form.group.value" class="mt-2 grid gap-8 lg:grid-cols-[12rem_minmax(0,1fr)]">
+    <div v-else-if="form.group.value && form.entry.value" class="mt-2 grid gap-8 lg:grid-cols-[12rem_minmax(0,1fr)]">
       <nav v-if="sections.length > 1" class="hidden lg:block" aria-label="Sections">
         <ul class="sticky top-4 space-y-1 text-sm">
           <li v-for="section in sections" :key="section.anchor">
@@ -112,14 +128,18 @@ async function confirmAndSave() {
             <TunablesField
               v-for="field in section.fields"
               :key="field.key"
-              v-model="form.draft[field.key]"
+              :model-value="form.draft[field.key]"
               :field="field"
               :effects="description?.effects"
               :entries="entriesFor(field)"
               :notes="form.entry.value?.notes[field.key]"
               :problems="form.fieldProblems(field.key)"
               :dirty="form.dirtyKeys.value.includes(field.key)"
+              :layer="form.entry.value?.layers?.[field.key]"
+              :inheriting="form.inheriting.has(field.key)"
+              @update:model-value="edit(field, $event)"
               @reset="form.toDefault(field)"
+              @inherit="form.useInherited(field.key)"
             />
           </div>
         </section>
@@ -156,7 +176,7 @@ async function confirmAndSave() {
 
     <USlideover v-if="history" v-model:open="showHistory" :title="`${form.group.value?.title ?? 'Settings'} history`">
       <template #body>
-        <TunablesHistory :target="{ kind: 'group', name: group }" @restored="form.refresh()" />
+        <TunablesHistory :target="historyTarget" @restored="form.refresh()" />
       </template>
     </USlideover>
   </section>

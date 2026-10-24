@@ -9,7 +9,7 @@ here before changing them.
 
 | Thing | Shape | Written by |
 |---|---|---|
-| Group values | one row per group: `id`, `values` (JSON object by field key), `updated_at`, `updated_by` | saves, resets, restores, `sync` |
+| Group values | one row per group and scope: `id`, `scope` (`''` for the system, or a scope key such as `workspace=w1;user=u7`), `values` (JSON object by field key), `updated_at`, `updated_by` | saves, resets, restores, `sync` |
 | Revisions | append-only: increasing `id`, `target` (`kind` group/preset/catalog/assignment, `name`, optional `id`), `actor`, `reason`, `changes` (`[{ key, from, to }]`), `snapshot` (the whole target after the change, `null` when removed), `at` | every change |
 | Records | JSON `data` by `collection` and `id`: presets in `preset:<set>`, catalog entries in `catalog:<catalog>` | preset and catalog changes, `sync` |
 | Assignments | `collection`, `subject`, `slot` → `record_id` | assigning presets |
@@ -17,6 +17,11 @@ here before changing them.
 - **Values are stored plain.** Whether a value differs from its default, and
   how it reads, is worked out when it is read. Defaults are not stored: the
   definition is their one home.
+- **The system row holds every field; a scoped row only what it overrides.**
+  A store reads one scope's rows (`readGroups(ids?, scope = '')`), every
+  scoped row of a group in key order (`readScopes(id)`), and removes a scoped
+  row once it overrides nothing (`deleteGroup(id, scope)`). `sync` writes
+  system rows only. [scopes.md](scopes.md) governs what the rows mean.
 - **Stored fields no definition declares are kept.** `sync` reports them and
   leaves them; nothing is dropped silently.
 - **Revisions are never changed or deleted.** A revision's `snapshot` is what
@@ -27,7 +32,7 @@ here before changing them.
 - Every change runs in one transaction and first takes the tunables lock
   **exclusively**. Reads, checks, the write and the revision commit together or
   not at all.
-- A host write that depends on tunables (a Feed configured within a bound)
+- A host write that depends on tunables (a task added within a project's limit)
   joins the host's own transaction with `tunables.within(host)` and takes the
   lock **shared** with `hold()`. A lowering then waits for it, and sees it.
 - `within(host)` never opens or commits a transaction: the host does.
@@ -36,6 +41,8 @@ here before changing them.
 
 - Tables `tunables_groups`, `tunables_revisions`, `tunables_records`,
   `tunables_assignments` in a schema the app names (default `tunables`).
+  `tunables_groups` is keyed by `(id, scope)`; `migrate` adds the column and
+  the key to tables created before scopes.
   `tunablesSql` and the Drizzle tables in `tunables/drizzle` are the same
   columns; a test holds them equal.
 - The lock is a transaction-scoped advisory lock whose key comes from the

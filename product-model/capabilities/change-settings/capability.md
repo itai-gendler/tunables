@@ -18,10 +18,12 @@ references:
 
 # Change settings
 
-Saves new values for a settings group, checked whole before anything is
+Saves new values for a settings group for the whole system, checked whole before anything is
 stored: each value against its kind and unit, the rules by which the group's
 settings bound one another, every preset the settings bound, and the host app's
-own checks of what it keeps that depends on the group. A change with
+own checks of what it keeps that depends on the group. A change that would
+leave a scope's override outside its bound on what it inherits is refused
+naming the scope. A change with
 consequences is saved only once confirmed. A saved change is recorded as one
 revision, with who made it and why.
 

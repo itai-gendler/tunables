@@ -12,6 +12,6 @@ references:
 
 # Review history
 
-Reads the revisions of a settings group, a preset, a catalog entry or a
-subject's assignments, newest first: who made each change, when, why, and each
+Reads the revisions of a settings group, for the whole system or at one
+scope, a preset, a catalog entry or a subject's assignments, newest first: who made each change, when, why, and each
 value before and after.

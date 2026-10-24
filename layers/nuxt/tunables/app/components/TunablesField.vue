@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { displayValue, type Description, type FieldDescription } from 'tunables/vue'
+import { displayValue, type Description, type FieldDescription, type FieldLayer } from 'tunables/vue'
 
 /**
  * One field: its label and explanation, the input its kind calls for, what it
  * affects, live notes, problems in its own words, and a way back to its default.
+ * At a scope it says what the field inherits and from where, and offers to use
+ * that again instead of a way back to the default.
  */
 const props = defineProps<{
   field: FieldDescription
@@ -16,8 +18,21 @@ const props = defineProps<{
   /** Entries a pick field may choose from. */
   entries?: { value: string, label: string }[]
   disabled?: boolean
+  /** At a scope: what the field inherits here. */
+  layer?: FieldLayer
+  /** At a scope: the draft uses the inherited value again. */
+  inheriting?: boolean
 }>()
-const emit = defineEmits<{ 'update:modelValue': [value: unknown], 'reset': [] }>()
+const emit = defineEmits<{ 'update:modelValue': [value: unknown], 'reset': [], 'inherit': [] }>()
+
+/** At a scope, whether the value shown is this scope's own rather than inherited. */
+const ownHere = computed(() => Boolean(props.layer) && !props.inheriting
+  && (props.layer!.overridden || JSON.stringify(props.modelValue) !== JSON.stringify(props.layer!.inherited)))
+const bound = computed(() => {
+  if (props.layer?.rule === 'at-most') return `At most ${props.layer.inheritedDisplay}`
+  if (props.layer?.rule === 'at-least') return `At least ${props.layer.inheritedDisplay}`
+  return undefined
+})
 
 const id = useId()
 // The input a kind calls for decides the value's type; the description says which kind it is.
@@ -109,7 +124,22 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
         </template>
       </div>
 
-      <div class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+      <div v-if="layer" class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted" data-tunables-layer>
+        <span v-if="ownHere">Set here · inherits {{ layer.inheritedDisplay }} from {{ layer.fromLabel }}</span>
+        <span v-else>Inherited from {{ layer.fromLabel }}</span>
+        <span v-if="bound">{{ bound }}</span>
+        <UButton
+          v-if="ownHere && !disabled"
+          size="xs"
+          variant="link"
+          color="neutral"
+          icon="i-lucide-undo-2"
+          :label="`Use ${layer.inheritedDisplay} from ${layer.fromLabel}`"
+          class="px-0"
+          @click="emit('inherit')"
+        />
+      </div>
+      <div v-else class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
         <span>Default: {{ emptyDefault ? 'none' : field.defaultDisplay }}</span>
         <UButton
           v-if="!isDefault && !disabled"

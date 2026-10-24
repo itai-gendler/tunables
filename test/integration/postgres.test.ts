@@ -3,13 +3,15 @@ import { getTableConfig } from 'drizzle-orm/pg-core'
 import { createTunables, memoryStore } from '../../src/index.js'
 import { lockKeyFor, migrate, postgresStore, tunablesSql } from '../../src/postgres/index.js'
 import { tunablesTables } from '../../src/postgres/drizzle.js'
-import { catalogs, effects, feedsAbove, groups, presets, units } from '../../fixture/news.js'
+import { catalogs, effects, feedsAbove, groups, presets, units } from '../fixtures/news/news.js'
 import { failable } from '../support.js'
 import { engineSuite } from '../suites/engine.js'
+import { scopesSuite } from '../suites/scopes.js'
 import { closeAll, drivers, freshSchema } from './database.js'
 
 for (const [name, client] of Object.entries(drivers)) {
   engineSuite(`Postgres via ${name}`, async () => failable(await freshSchema(client)))
+  scopesSuite(`Postgres via ${name}`, async () => failable(await freshSchema(client)))
 }
 
 afterAll(closeAll)

@@ -15,3 +15,5 @@ references:
 Changes a preset's label and values, checked whole like a new one. Its key and
 slot stay as they were created. Every subject assigned it, and every subject
 following it as the default, runs as the new values from its next resolve.
+Where the preset is a plan, a change that would leave a scope's override
+outside its bound is refused naming it.

@@ -2,6 +2,7 @@ import type { Description } from '../engine/describe.js'
 import type { GroupEntry, Outcome } from '../engine/tunables.js'
 import type { Assignment, Revision, RevisionTarget } from '../engine/store.js'
 import type { CatalogEntry, Preset } from '../model/definitions.js'
+import type { ScopePath } from '../engine/scopes.js'
 
 /**
  * What the screens call, whichever way the host serves tunables: the fetch API
@@ -25,9 +26,11 @@ export interface ChangeInput {
 export interface TunablesClient {
   describe(): Promise<Description>
   overview(): Promise<GroupEntry[]>
-  group(id: string): Promise<GroupEntry>
-  save(id: string, input: { values: Record<string, unknown>, confirmed?: boolean } & ChangeInput): Promise<Outcome<GroupEntry>>
-  reset(id: string, input?: { keys?: string[] } & ChangeInput): Promise<Outcome<GroupEntry>>
+  /** A group's entry: the system's, or as read at a scope path. */
+  group(id: string, scope?: ScopePath): Promise<GroupEntry>
+  /** Save values, at a scope when given; `null` uses the inherited value there again. */
+  save(id: string, input: { values: Record<string, unknown>, confirmed?: boolean, scope?: ScopePath } & ChangeInput): Promise<Outcome<GroupEntry>>
+  reset(id: string, input?: { keys?: string[], scope?: ScopePath } & ChangeInput): Promise<Outcome<GroupEntry>>
   history(target: RevisionTarget & { limit?: number, before?: string }): Promise<Revision[]>
   restore(input: { revision: string, confirmed?: boolean } & ChangeInput): Promise<Outcome<GroupEntry>>
   presets(set: string): Promise<PresetSummary[]>
@@ -62,6 +65,9 @@ export interface FetchClientOptions {
 }
 
 const part = (value: string) => encodeURIComponent(value)
+const scopeQuery = (scope?: ScopePath) => scope && Object.keys(scope).length
+  ? `?scope=${encodeURIComponent(Object.entries(scope).map(([name, id]) => `${name}=${id}`).join(';'))}`
+  : ''
 
 export function fetchClient(options: FetchClientOptions = {}): TunablesClient {
   const base = (options.baseURL ?? '/api/tunables').replace(/\/+$/, '')
@@ -87,7 +93,7 @@ export function fetchClient(options: FetchClientOptions = {}): TunablesClient {
   return {
     describe: () => send('GET', 'describe'),
     overview: () => send('GET', 'groups'),
-    group: id => send('GET', `groups/${part(id)}`),
+    group: (id, scope) => send('GET', `groups/${part(id)}${scopeQuery(scope)}`),
     save: (id, input) => send('PUT', `groups/${part(id)}`, input),
     reset: (id, input = {}) => send('POST', `groups/${part(id)}/reset`, input),
     history: (target) => {
@@ -134,7 +140,7 @@ export function orpcClient(procedures: ProcedureClients): TunablesClient {
   return {
     describe: () => call('describe'),
     overview: () => call('overview'),
-    group: id => call('group', { id }),
+    group: (id, scope) => call('group', { id, scope }),
     save: (id, input) => call('save', { id, ...input }),
     reset: (id, input = {}) => call('reset', { id, ...input }),
     history: target => call('history', target),
@@ -158,3 +164,5 @@ export type { Description, GroupEntry, Outcome, Revision, RevisionTarget, Assign
 export type { FieldDescription, GroupDescription, PresetsDescription, CatalogDescription } from '../engine/describe.js'
 export { displayValue } from './format.js'
 export type { Problem } from '../model/definitions.js'
+export type { ScopePath } from '../engine/scopes.js'
+export type { FieldLayer } from '../engine/tunables.js'

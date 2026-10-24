@@ -18,17 +18,17 @@ export function tunables(args: string[], options: { cwd?: string, env?: Record<s
 }
 
 /**
- * A copy of the fixture beside the original, so its `../src` imports still
- * resolve; removed by the returned function.
+ * A copy of the news fixture in a directory of its own under the root, with
+ * its `src` imports adjusted; removed by the returned function.
  */
 export function fixtureCopy(): { directory: string, remove: () => void } {
   const parent = mkdtempSync(join(root, '.tmp-cli-'))
   const directory = join(parent, 'fixture')
-  cpSync(join(root, 'fixture'), directory, { recursive: true })
-  // The copy sits one level deeper, so its imports reach src/ one level further up.
+  cpSync(join(root, 'test/fixtures/news'), directory, { recursive: true })
+  // The copy sits one level shallower, so its imports reach src/ one level less far up.
   for (const file of ['news.ts', 'tunables.config.ts', 'explanations.ts']) {
     const path = join(directory, file)
-    writeFileSync(path, readFileSync(path, 'utf8').replaceAll("'../src/", "'../../src/"))
+    writeFileSync(path, readFileSync(path, 'utf8').replaceAll("'../../../src/", "'../../src/"))
   }
   return { directory, remove: () => rmSync(parent, { recursive: true, force: true }) }
 }

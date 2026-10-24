@@ -13,8 +13,10 @@ exclusions:
     paths: [site/]
   - description: The playground app used to try the screens during development.
     paths: [playground/]
-  - description: The fixture app the tests and skills run against.
-    paths: [fixture/]
+  - description: The news fixture the tests and definition checks run against.
+    paths: [test/fixtures/news/]
+  - description: Tasklane, the example app the docs, the playground and the scoped tests use.
+    paths: [examples/]
   - description: Repository maintenance scripts.
     paths: [scripts/]
   - description: Continuous integration and repository automation.

@@ -18,7 +18,7 @@ appliesTo:
   - { type: entity, id: catalog-entry, effect: creates }
   - { type: entity, id: catalog-entry, effect: changes }
 permits:
-  - actors: [administrator]
+  - actors: [administrator, scope-owner]
     configuredBy: access-policy
   - actors: [host-app]
   - actors: [developer]
@@ -32,10 +32,14 @@ references:
 
 Through the screens and the HTTP API, a person reads or changes a settings
 group, its history, presets, assignments or catalog entries only when the host
-app's access policy says, for that request, that they are signed in and may.
+app's access policy says, for that request and the scope it names, that they
+are signed in and may. A person the host app allows only their own scope, such
+as a workspace owner, reaches that scope's values and history and nothing
+broader.
 The host app's own code acts for itself through the library, and a Developer
 reaches stored values at a terminal only through the app's own database
-connection. Everyone else is refused, by default as if nothing were there.
+connection; a terminal given the app's API address and a token is a client of
+the HTTP API like any other, asked about by the access policy on every request. Everyone else is refused, by default as if nothing were there.
 
 ## Rationale
 

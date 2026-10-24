@@ -25,7 +25,7 @@ function routes<Context>(): Route<Context>[] {
   return [
     route('GET', 'describe', (s, c) => s.describe(c)),
     route('GET', 'groups', (s, c) => s.overview(c)),
-    route('GET', 'groups/:id', (s, c, p) => s.group(c, p.id!)),
+    route('GET', 'groups/:id', (s, c, p, _b, q) => s.group(c, p.id!, Object.fromEntries(q))),
     route('PUT', 'groups/:id', (s, c, p, b) => s.save(c, p.id!, b)),
     route('POST', 'groups/:id/reset', (s, c, p, b) => s.reset(c, p.id!, b)),
     route('GET', 'history', (s, c, _p, _b, q) => s.history(c, Object.fromEntries(q))),

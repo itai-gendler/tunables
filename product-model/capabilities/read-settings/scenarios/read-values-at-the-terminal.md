@@ -39,3 +39,4 @@ defaults, and nothing is changed.
 
 - The values are also given as JSON for a script.
 - A setting the group does not have is refused by name.
+- Given the app's API address and a token, the values are read through the app's HTTP API, as far as its access policy allows that token.

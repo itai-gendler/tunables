@@ -14,7 +14,9 @@ limitations:
   - A change reaches other running instances of the app on their next read, not at once.
   - Renaming a setting does not carry its value; the new name starts at its default, and the old value stays stored under the old name.
   - The screens are in English only.
-  - People sign in with the host app's own accounts, and the host app decides who may read and change settings; tunables keeps no users or roles of its own.
+  - People sign in with the host app's own accounts, and the host app decides who may read and change settings, at each scope; tunables keeps no users or roles of its own.
+  - Scopes form one chain, each inside the one before, such as a user inside their workspace; a person's own values belong to them in one workspace and do not follow them into another.
+  - A value is layered only among stored settings; the environment never overrides a setting, and a setting never overrides a deployment value.
 references:
   - kind: code
     role: implementation
@@ -31,7 +33,12 @@ the Product Model fact it is. The values live in the app's own database. An
 Administrator changes them in screens the app embeds beside what each setting
 affects, where every change is checked whole against the setting's kind, the
 settings that bound it and what already uses it, confirmed when it has
-consequences, and recorded as a revision that can be restored. Presets bundle
+consequences, and recorded as a revision that can be restored. Where the app declares scopes,
+such as a workspace and a user inside it, a setting declared overridable there
+can take a scope's own value, bounded by what it inherits, read through its
+layers with the most specific winning, and changed by whoever the host app lets
+tune that scope — a workspace owner included — through the same screens and
+checks. Presets bundle
 settings into named, assignable sets, and catalogs keep the entries presets pick
 from, which are retired rather than deleted. Values a deployment sets and
 nobody tunes stay in the environment, declared beside the settings. A terminal

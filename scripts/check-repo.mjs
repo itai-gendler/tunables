@@ -28,7 +28,7 @@ const REQUIRED = [
   'src/cli.ts', 'src/index.ts', 'src/postgres/index.ts', 'src/server/index.ts', 'src/vue/index.ts',
   'spec/storage.md', 'spec/handlers.md',
   'layers/nuxt/tunables/nuxt.config.ts',
-  'fixture/news.ts', 'playground/package.json', 'site/package.json',
+  'test/fixtures/news/news.ts', 'examples/tasklane/tunables.ts', 'playground/package.json', 'site/package.json',
   'product-model/product.md',
   '.claude-plugin/plugin.json', '.claude-plugin/marketplace.json'
 ]
@@ -179,7 +179,7 @@ async function* sourceFiles(directory) {
     }
   }
 }
-for (const directory of ['src', 'test', 'layers', 'fixture', 'playground']) {
+for (const directory of ['src', 'test', 'layers', 'examples', 'playground']) {
   for await (const file of sourceFiles(directory)) {
     const source = await readFile(resolve(root, file), 'utf8')
     for (const match of source.matchAll(/[Rr]ules? ((?:`[a-z0-9]+(?:-[a-z0-9]+)*`(?:,? (?:and )?)?)+)/g)) {

@@ -32,3 +32,5 @@ value reads to a person, the input it is edited with and its default.
 - **Section** — the sub-heading it is listed under in its group
 - **Effects** — what changing it changes, such as cost or what people see, the ones that cost money or reach people marked as warnings
 - **Notes** — what its current value means in the host app now, such as how many things use it
+- **Override scopes** — the scopes at which its value may be overridden, such as a workspace and a user; none unless declared, so a setting is otherwise set only for the whole system
+- **Override bound** — at each of those scopes, whether an override is free, or at most or at least the value it inherits there; at most and at least bound numbers only

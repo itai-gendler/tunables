@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import type { Actor, AnyTunables, ChangeOptions } from '../engine/tunables.js'
 import type { RevisionTarget } from '../engine/store.js'
+import { parseScopeKey, pathOf, scopeEntries, type ScopePath } from '../engine/scopes.js'
+import { TunablesError } from '../engine/errors.js'
 
 /**
  * Every operation the screens and other clients use, once, with access decided
@@ -11,9 +13,14 @@ import type { RevisionTarget } from '../engine/store.js'
 export type Action = 'read' | 'change'
 
 export interface AccessTarget {
-  kind: 'description' | 'group' | 'presets' | 'catalog' | 'history'
+  kind: 'description' | 'group' | 'presets' | 'catalog'
   /** The group, preset set or catalog. Absent for the description and the overview. */
   id?: string
+  /**
+   * For a group: where in the chain, such as `{ workspace: 'w1' }`. Absent for
+   * the whole system. A host lets someone change their own scope this way.
+   */
+  scope?: ScopePath
 }
 
 export interface ServiceOptions<Context> {
@@ -44,9 +51,13 @@ export class ServiceError extends Error {
 /* ------------------------------------------------------------------ inputs */
 
 const reason = z.string().trim().max(500).optional()
+/** A scope path as an object, or as its key `workspace=w1;user=u7`. */
+const scope = z.union([z.record(z.string(), z.string()), z.string()]).optional()
+  .transform(value => typeof value === 'string' ? (value ? pathOf(parseScopeKey(value)) : undefined) : value)
 export const inputs = {
-  save: z.object({ values: z.record(z.string(), z.unknown()), reason, confirmed: z.boolean().optional() }),
-  reset: z.object({ keys: z.array(z.string()).optional(), reason }),
+  save: z.object({ values: z.record(z.string(), z.unknown()), reason, confirmed: z.boolean().optional(), scope }),
+  reset: z.object({ keys: z.array(z.string()).optional(), reason, scope }),
+  read: z.object({ scope }),
   history: z.object({
     kind: z.enum(['group', 'preset', 'catalog', 'assignment']),
     name: z.string().min(1),
@@ -98,10 +109,28 @@ export function createService<Context>(options: ServiceOptions<Context>) {
     if (actor === undefined) throw refuse(false)
     const allowed = options.authorize ? await options.authorize(context, { action, target, actor }) : false
     if (!allowed) throw refuse(true)
-    if (target.id !== undefined && target.kind !== 'description' && target.kind !== 'history' && !exists[target.kind](target.id)) {
+    if (target.id !== undefined && target.kind !== 'description' && !exists[target.kind](target.id)) {
       throw new ServiceError(404, `No ${target.kind === 'presets' ? 'preset set' : target.kind} "${target.id}".`)
     }
     return { actor, change: { actor, host: options.host?.(context) } }
+  }
+
+  /** A request's input, read only for someone tunables admits; others are refused as for anything else. */
+  async function scoped<T extends { scope?: ScopePath }>(context: Context, schema: z.ZodType<T>, value: unknown): Promise<T> {
+    const result = schema.safeParse(value ?? {})
+    if (!result.success) {
+      await admits(context)
+      return parse(schema, value)
+    }
+    try {
+      // The path, as the chain orders it, is what access is asked about.
+      const entries = scopeEntries(definitions.scopes, result.data.scope)
+      return { ...result.data, scope: entries.length ? pathOf(entries) : undefined }
+    } catch (error) {
+      if (!(error instanceof TunablesError)) throw error
+      await admits(context)
+      throw new ServiceError(400, error.message)
+    }
   }
 
   /** Whether this context may use tunables at all: it may read the description. Asked before answering a malformed request. */
@@ -130,25 +159,28 @@ export function createService<Context>(options: ServiceOptions<Context>) {
       if (!entries.length) throw refuse(Boolean(await options.actor(context)))
       return entries
     },
-    async group(context: Context, id: string) {
-      const { change } = await allow(context, 'read', { kind: 'group', id })
-      return tunables.entry(id, { host: change.host })
+    // A scope is read from the request before access is asked, because access depends on it;
+    // a malformed scope is answered only to someone tunables admits.
+    async group(context: Context, id: string, query: unknown = {}) {
+      const path = await scoped(context, inputs.read, query)
+      const { change } = await allow(context, 'read', { kind: 'group', id, scope: path.scope })
+      return tunables.entry(id, { host: change.host, scope: path.scope })
     },
     async save(context: Context, id: string, body: unknown) {
-      const { change } = await allow(context, 'change', { kind: 'group', id })
-      const input = parse(inputs.save, body)
-      return tunables.save(id, input.values, { ...change, reason: input.reason, confirmed: input.confirmed })
+      const input = await scoped(context, inputs.save, body)
+      const { change } = await allow(context, 'change', { kind: 'group', id, scope: input.scope })
+      return tunables.save(id, input.values, { ...change, reason: input.reason, confirmed: input.confirmed, scope: input.scope })
     },
     async reset(context: Context, id: string, body: unknown) {
-      const { change } = await allow(context, 'change', { kind: 'group', id })
-      const input = parse(inputs.reset, body)
-      return tunables.reset(id, input.keys, { ...change, reason: input.reason })
+      const input = await scoped(context, inputs.reset, body)
+      const { change } = await allow(context, 'change', { kind: 'group', id, scope: input.scope })
+      return tunables.reset(id, input.keys, { ...change, reason: input.reason, scope: input.scope })
     },
     async history(context: Context, query: unknown) {
       await admits(context)
       const input = parse(inputs.history, query)
       const target: RevisionTarget = input.id ? { kind: input.kind, name: input.name, id: input.id } : { kind: input.kind, name: input.name }
-      await allow(context, 'read', historyTarget(target))
+      await allow(context, 'read', { ...historyTarget(target), scope: input.kind === 'group' && input.id ? pathOf(parseScopeKey(input.id)) : undefined })
       return tunables.history(target, { limit: input.limit, before: input.before })
     },
     async restore(context: Context, body: unknown) {
@@ -156,7 +188,8 @@ export function createService<Context>(options: ServiceOptions<Context>) {
       const input = parse(inputs.restore, body)
       const revision = (await tunables.store.getRevision(input.revision))
       const group = revision?.target.kind === 'group' ? revision.target.name : undefined
-      const { change } = await allow(context, 'change', { kind: 'group', id: group && exists.group(group) ? group : undefined })
+      const scope = group && revision?.target.id ? pathOf(parseScopeKey(revision.target.id)) : undefined
+      const { change } = await allow(context, 'change', { kind: 'group', id: group && exists.group(group) ? group : undefined, scope })
       return tunables.restore(input.revision, { ...change, reason: input.reason, confirmed: input.confirmed })
     },
     async presets(context: Context, set: string) {
