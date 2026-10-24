@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-24
+
 ### Added
 
 - Settings declared once, with their kind, unit, default, section, effects and Product Model fact, checked on every save in their own words, with rules across settings, guards for what the app keeps, and confirmations for changes with consequences.
@@ -21,4 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Product Model:** field explanations from a pdd-kit Product Model, defaults checked against it, and missing facts drafted for `/pdd-ideate`.
 - **Docs:** tunables.dev, with a quickstart, concepts, integration, screens, CLI and skills guides.
 
-[Unreleased]: https://github.com/itai-gendler/tunables/commits/main
+### Contributors
+
+- [@itai-gendler](https://github.com/itai-gendler)
+
+**Full Changelog**: [v0.1.0][0.1.0]
+
+[Unreleased]: https://github.com/itai-gendler/tunables/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/itai-gendler/tunables/releases/tag/v0.1.0

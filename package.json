@@ -1,6 +1,6 @@
 {
   "name": "tunables",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Runtime settings with guardrails, for the app you already run: typed, bounded, explained beside what they affect, and recorded in a history.",
   "keywords": [
     "settings",
