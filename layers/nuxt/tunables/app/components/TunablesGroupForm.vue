@@ -8,8 +8,19 @@ import { useGroupForm, useTunablesClient, useTunablesDescription, type CatalogEn
  *
  * Given a `scope`, it edits that scope's own values: only the fields it may set,
  * each with what it inherits and from where, and a way to use that again.
+ *
+ * `bare` leaves the title and description to the page around it; `footer` names
+ * an element the unsaved-changes bar is placed in, such as the page's footer;
+ * `size` sets the size of every control.
  */
-const props = withDefaults(defineProps<{ group: string, scope?: ScopePath, history?: boolean }>(), { history: true })
+const props = withDefaults(defineProps<{
+  group: string
+  scope?: ScopePath
+  history?: boolean
+  bare?: boolean
+  footer?: string
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+}>(), { history: true, bare: false, footer: undefined, size: undefined, scope: undefined })
 
 const form = useGroupForm(toRef(props, 'group'), { scope: toRef(props, 'scope') })
 const { description } = useTunablesDescription()
@@ -24,7 +35,11 @@ const sections = computed(() => {
   const named = group.sections.map(name => ({ name, anchor: `tunables-${group.id}-${slug(name)}`, fields: group.fields.filter(field => field.section === name) }))
   const loose = group.fields.filter(field => !field.section)
   const all = loose.length ? [{ name: 'General', anchor: `tunables-${group.id}-general`, fields: loose }, ...named] : named
-  return all.filter(section => section.fields.length)
+  // A section states once the effects every one of its fields shares; each field shows only what it adds.
+  return all.filter(section => section.fields.length).map(section => ({
+    ...section,
+    shared: section.fields.length > 1 ? (section.fields[0]!.affects ?? []).filter(effect => section.fields.every(field => field.affects?.includes(effect))) : []
+  }))
 })
 const scoped = computed(() => form.entry.value?.scope)
 const historyTarget = computed(() => scoped.value ? { kind: 'group' as const, name: props.group, id: scoped.value.key } : { kind: 'group' as const, name: props.group })
@@ -65,25 +80,25 @@ async function confirmAndSave() {
 
 <template>
   <section class="tunables-group-form" :aria-busy="form.loading.value">
-    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-4">
+    <header class="flex flex-wrap items-start justify-between gap-3" :class="bare ? '' : 'border-b border-default pb-4'">
       <div class="min-w-0">
-        <h2 class="text-lg font-semibold text-highlighted">
+        <h2 v-if="!bare" class="text-lg font-semibold text-highlighted">
           {{ form.group.value?.title ?? 'Settings' }}
           <UBadge v-if="scoped" class="ms-2 align-middle" color="neutral" variant="subtle" :label="scoped.label" />
         </h2>
-        <p v-if="form.group.value?.description" class="mt-1 max-w-prose text-sm text-muted">
+        <p v-if="!bare && form.group.value?.description" class="mt-1 max-w-prose text-sm text-muted">
           {{ form.group.value.description }}
         </p>
         <p v-if="scoped && !sections.length && !form.loading.value" class="mt-1 text-sm text-muted">
           Nothing in this group can be set for {{ scoped.label }}.
         </p>
-        <p v-if="form.entry.value?.updatedAt" class="mt-1 text-xs text-muted" data-tunables-time>
+        <p v-if="form.entry.value?.updatedAt" class="text-xs text-muted" :class="bare ? '' : 'mt-1'" data-tunables-time>
           Last changed {{ tunablesTime(form.entry.value.updatedAt) }}<template v-if="form.entry.value.updatedBy">
             by {{ form.entry.value.updatedBy }}
           </template>
         </p>
       </div>
-      <UButton v-if="history" icon="i-lucide-history" color="neutral" variant="outline" label="History" @click="showHistory = true" />
+      <UButton v-if="history" icon="i-lucide-history" color="neutral" variant="outline" label="History" :size="size" @click="showHistory = true" />
     </header>
 
     <UAlert v-if="form.error.value" class="mt-4" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="form.error.value" />
@@ -124,6 +139,7 @@ async function confirmAndSave() {
           <h3 v-if="sections.length > 1" class="text-xs font-semibold uppercase tracking-wide text-muted">
             {{ section.name }}
           </h3>
+          <TunablesEffects v-if="section.shared.length" class="mt-1" :affects="section.shared" :effects="description?.effects" />
           <div class="divide-y divide-default">
             <TunablesField
               v-for="field in section.fields"
@@ -137,6 +153,8 @@ async function confirmAndSave() {
               :dirty="form.dirtyKeys.value.includes(field.key)"
               :layer="form.entry.value?.layers?.[field.key]"
               :inheriting="form.inheriting.has(field.key)"
+              :shared-effects="section.shared"
+              :size="size"
               @update:model-value="edit(field, $event)"
               @reset="form.toDefault(field)"
               @inherit="form.useInherited(field.key)"
@@ -146,9 +164,11 @@ async function confirmAndSave() {
       </div>
     </div>
 
+    <Teleport :to="footer" :disabled="!footer" defer>
     <div
       v-if="form.dirty.value || savedNotice"
-      class="sticky bottom-0 z-10 -mx-1 mt-6 flex flex-wrap items-center gap-3 border-t border-default bg-default/95 px-1 py-3 backdrop-blur"
+      class="flex flex-wrap items-center gap-3"
+      :class="footer ? '' : 'sticky bottom-0 z-10 -mx-1 mt-6 border-t border-default bg-default/95 px-1 py-3 backdrop-blur'"
       role="region"
       aria-label="Unsaved changes"
     >
@@ -156,14 +176,15 @@ async function confirmAndSave() {
         <span class="text-sm font-medium text-highlighted">
           {{ form.dirtyKeys.value.length }} unsaved {{ form.dirtyKeys.value.length === 1 ? 'change' : 'changes' }}
         </span>
-        <UInput v-model="form.reason.value" placeholder="Why (kept in the history)" class="min-w-48 flex-1" aria-label="Reason for this change" />
-        <UButton color="neutral" variant="ghost" label="Discard" @click="form.discard()" />
-        <UButton label="Save" icon="i-lucide-check" :loading="form.saving.value" @click="save" />
+        <UInput v-model="form.reason.value" placeholder="Why (kept in the history)" class="min-w-48 flex-1" aria-label="Reason for this change" :size="size" />
+        <UButton color="neutral" variant="ghost" label="Discard" :size="size" @click="form.discard()" />
+        <UButton label="Save" icon="i-lucide-check" :loading="form.saving.value" :size="size" @click="save" />
       </template>
       <span v-else class="inline-flex items-center gap-2 text-sm text-success" role="status">
         <UIcon name="i-lucide-circle-check" /> Saved
       </span>
     </div>
+    </Teleport>
 
     <UModal v-model:open="confirmOpen" title="Confirm this change" :description="form.confirm.value">
       <template #footer>

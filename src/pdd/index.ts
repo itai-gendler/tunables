@@ -71,11 +71,23 @@ export const explanations: Explanations = ${serialize(explanations, '')}
 
 const numbers = (text: string) => [...text.replace(/(\d),(?=\d{3})/g, '$1').matchAll(/\d+(?:\.\d+)?/g)].map(match => Number(match[0]))
 
+const SECONDS: Record<string, number> = { second: 1, minute: 60, hour: 3600, day: 86400, week: 604800 }
+
+/** A duration in seconds, when the text is one amount of time ("1 day", "24 hours", "90 seconds"). */
+function duration(text: string): number | undefined {
+  const match = /^\s*(\d+(?:\.\d+)?)\s*(second|minute|hour|day|week)s?\s*$/i.exec(text.replace(/(\d),(?=\d{3})/g, '$1'))
+  return match ? Number(match[1]) * SECONDS[match[2]!.toLowerCase()]! : undefined
+}
+
 /**
  * Whether a default as the model states it ("25 dollars", "400 by 225 pixels",
- * "On", "Feeds Briefs read") is the one a field declares, as it reads.
+ * "On", "Feeds Briefs read", "1 day") is the one a field declares, as it reads
+ * ("24 hours" is "1 day").
  */
 export function sameDefault(stated: string, declared: string): boolean {
+  const statedTime = duration(stated)
+  const declaredTime = duration(declared)
+  if (statedTime !== undefined && declaredTime !== undefined) return statedTime === declaredTime
   const said = numbers(stated)
   const shown = numbers(declared)
   if (shown.length || said.length) return said.length === shown.length && said.every((value, index) => value === shown[index])

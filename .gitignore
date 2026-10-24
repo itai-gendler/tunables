@@ -7,3 +7,6 @@ dist/
 .data/
 playwright-report/
 test-results/
+
+# Packed tarballs (npm pack)
+*.tgz

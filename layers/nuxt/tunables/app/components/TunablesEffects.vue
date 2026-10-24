@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import type { Description } from 'tunables/vue'
 
-/** What changing a field changes, each with its icon; costly ones stand out. */
-const props = defineProps<{ affects: string[], effects?: Description['effects'] }>()
-const items = computed(() => props.affects.map(id => ({ id, ...(props.effects?.[id] ?? { label: id, warn: false }) })))
+/** What changing a field changes, each with its icon; costly ones stand out. `except` leaves out what its section already states. */
+const props = defineProps<{ affects: string[], effects?: Description['effects'], except?: string[] }>()
+const items = computed(() => props.affects.filter(id => !props.except?.includes(id)).map(id => ({ id, ...(props.effects?.[id] ?? { label: id, warn: false }) })))
 </script>
 
 <template>

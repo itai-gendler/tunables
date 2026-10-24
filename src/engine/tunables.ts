@@ -1,3 +1,4 @@
+import { sameValue } from '../model/values.js'
 import { fieldLabel, fieldSchema, formatValue, type Fields } from '../model/kinds.js'
 import {
   defaultsOf,
@@ -145,7 +146,7 @@ function actorName(actor: Actor | undefined): string | null {
 }
 
 function equal(a: unknown, b: unknown): boolean {
-  return JSON.stringify(a) === JSON.stringify(b)
+  return sameValue(a, b)
 }
 
 function diff(previous: Record<string, unknown>, next: Record<string, unknown>, keys: Iterable<string>): Change[] {

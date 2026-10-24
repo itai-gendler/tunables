@@ -1,4 +1,5 @@
 import { computed, inject, onBeforeUnmount, onMounted, provide, reactive, ref, shallowRef, watch, type InjectionKey, type Ref } from 'vue'
+import { sameValue } from '../model/values.js'
 import type { CatalogEntrySummary, PresetSummary, TunablesClient } from '../client/index.js'
 import type { Description, FieldDescription, GroupDescription } from '../engine/describe.js'
 import type { GroupEntry, Outcome } from '../engine/tunables.js'
@@ -26,7 +27,7 @@ export function useTunablesClient(): TunablesClient {
 }
 
 const clone = <T>(value: T): T => (value === undefined ? value : JSON.parse(JSON.stringify(value)) as T)
-const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+const same = sameValue
 const failure = (error: unknown) => error instanceof Error ? error.message : String(error)
 
 /* ------------------------------------------------------------- description */
@@ -366,6 +367,7 @@ export { displayValue } from '../client/format.js'
 export type { TunablesClient, PresetSummary, CatalogEntrySummary } from '../client/index.js'
 export type { Description, FieldDescription, GroupDescription, PresetsDescription, CatalogDescription } from '../engine/describe.js'
 export type { GroupEntry, Outcome } from '../engine/tunables.js'
+export { sameValue } from '../model/values.js'
 export type { Revision, RevisionTarget } from '../engine/store.js'
 export type { ScopePath } from '../engine/scopes.js'
 export type { FieldLayer } from '../engine/tunables.js'

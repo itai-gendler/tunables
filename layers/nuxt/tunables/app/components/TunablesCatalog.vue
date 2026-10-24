@@ -6,7 +6,8 @@ import { displayValue, useCatalog, useTunablesDescription, type CatalogEntrySumm
  * entries, and retire or reinstate them. Entries are never deleted, and one in
  * use cannot be retired.
  */
-const props = defineProps<{ catalog: string }>()
+/** `bare` leaves the title and description to the page around it. */
+const props = defineProps<{ catalog: string, bare?: boolean }>()
 const { description } = useTunablesDescription()
 const catalog = useCatalog(toRef(props, 'catalog'))
 const definition = computed(() => description.value?.catalogs.find(item => item.id === props.catalog))
@@ -61,8 +62,8 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
 
 <template>
   <section class="tunables-catalog">
-    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-4">
-      <div>
+    <header class="flex flex-wrap items-start justify-between gap-3" :class="bare ? '' : 'border-b border-default pb-4'">
+      <div v-if="!bare">
         <h2 class="text-lg font-semibold text-highlighted">
           {{ definition?.title ?? catalog }}
         </h2>
@@ -70,7 +71,7 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
           {{ definition.description }}
         </p>
       </div>
-      <UButton v-if="definition" icon="i-lucide-plus" :label="`Add ${definition.singular.toLowerCase()}`" @click="open('new')" />
+      <UButton v-if="definition" :class="bare ? 'ms-auto' : ''" icon="i-lucide-plus" :label="`Add ${definition.singular.toLowerCase()}`" @click="open('new')" />
     </header>
     <UAlert v-if="catalog.error.value" class="mt-4" color="error" variant="subtle" :title="catalog.error.value" />
     <p v-if="notice" class="mt-3 text-sm text-muted" role="status">

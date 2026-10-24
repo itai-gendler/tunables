@@ -45,6 +45,34 @@ describe('deployment values', () => {
     ])
   })
 
+  it('wraps a long description at 80 columns', () => {
+    const app = defineEnvironment({ LONG: env.string({ optional: true, description: 'word '.repeat(40).trim() }) })
+    const lines = renderEnvExample(app).split('\n').filter(line => line.startsWith('# word'))
+    expect(lines.length).toBeGreaterThan(1)
+    expect(lines.every(line => line.length <= 80)).toBe(true)
+  })
+
+  it('reads an optional value as undefined, and never echoes a secret', () => {
+    const app = defineEnvironment({
+      API_KEY: env.string({ description: 'The provider key.', optional: true, secret: true }),
+      PIN: env.integer({ description: 'A secret number.', secret: true, optional: true }),
+      SIGN_IN: env.boolean({ description: 'Password sign-in.', optional: true, example: '1' })
+    })
+    const read: { API_KEY: string | undefined, PIN: number | undefined, SIGN_IN: boolean | undefined } = app.read({})
+    expect(read).toEqual({ API_KEY: undefined, PIN: undefined, SIGN_IN: undefined })
+    expect(() => app.read({ PIN: 'hunter2' })).toThrow('- PIN: must be a number.')
+    expect(() => app.read({ PIN: 'hunter2' })).not.toThrow(/hunter2/)
+    expect(renderEnvExample(app)).toBe(`# The provider key.
+# API_KEY=
+
+# A secret number.
+# PIN=
+
+# Password sign-in.
+SIGN_IN=1
+`)
+  })
+
   it('writes .env.example with every value under its description', () => {
     expect(renderEnvExample(environment, 'The app')).toBe(`# The app
 
@@ -119,6 +147,9 @@ describe('Product Model link', () => {
   it('compares defaults by their numbers, or by their words', () => {
     expect(sameDefault('25 dollars', '$25')).toBe(true)
     expect(sameDefault('100,000 characters', '100,000 characters')).toBe(true)
+    expect(sameDefault('1 day', '24 hours')).toBe(true)
+    expect(sameDefault('90 seconds', '1.5 minutes')).toBe(true)
+    expect(sameDefault('1 day', '12 hours')).toBe(false)
     expect(sameDefault('400 by 225 pixels', '400 × 225 pixels')).toBe(true)
     expect(sameDefault('23:00', '23:00')).toBe(true)
     expect(sameDefault('Feeds Briefs read', 'Feeds Briefs read')).toBe(true)

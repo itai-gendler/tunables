@@ -35,6 +35,7 @@ export type {
   PickField
 } from './model/kinds.js'
 export { BUILT_IN_UNITS, formatAmount } from './model/units.js'
+export { sameValue } from './model/values.js'
 export type { Unit, BuiltInUnit } from './model/units.js'
 export {
   defineGroup,

@@ -27,7 +27,7 @@ const workspaces = [
             {{ workspace.members }} members
           </p>
         </div>
-        <TunablesAssign set="plans" :subject="workspace.id" slot="plan" label="Plan" />
+        <TunablesAssign set="plans" :subject="workspace.id" for-slot="plan" label="Plan" />
       </li>
     </ul>
   </section>

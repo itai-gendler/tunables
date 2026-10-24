@@ -5,7 +5,8 @@ import { usePresets, useTunablesDescription, type PresetSummary, type Problem } 
  * A preset set, such as Run Configs: each slot's presets with its default and
  * how many follow each, and creating, editing, defaulting and removing them.
  */
-const props = defineProps<{ set: string }>()
+/** `bare` leaves the title and description to the page around it. */
+const props = defineProps<{ set: string, bare?: boolean }>()
 const { description } = useTunablesDescription()
 const presets = usePresets(toRef(props, 'set'))
 const definition = computed(() => description.value?.presets.find(item => item.id === props.set))
@@ -56,8 +57,8 @@ async function remove() {
 
 <template>
   <section class="tunables-presets">
-    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-4">
-      <div>
+    <header class="flex flex-wrap items-start justify-between gap-3" :class="bare ? '' : 'border-b border-default pb-4'">
+      <div v-if="!bare">
         <h2 class="text-lg font-semibold text-highlighted">
           {{ definition?.title ?? set }}
         </h2>
@@ -65,7 +66,7 @@ async function remove() {
           {{ definition.description }}
         </p>
       </div>
-      <UButton v-if="definition" icon="i-lucide-plus" :label="`New ${definition.singular}`" @click="open('new')" />
+      <UButton v-if="definition" :class="bare ? 'ms-auto' : ''" icon="i-lucide-plus" :label="`New ${definition.singular}`" @click="open('new')" />
     </header>
     <UAlert v-if="presets.error.value" class="mt-4" color="error" variant="subtle" :title="presets.error.value" />
     <p v-if="notice" class="mt-3 text-sm text-muted" role="status">

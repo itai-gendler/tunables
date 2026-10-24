@@ -39,7 +39,7 @@ with your own route middleware, and the API with `authorize`.
 | `TunablesOverview` | none | All settings, read-only |
 | `TunablesHistory` | `target` | A target's revisions, with restore for groups |
 | `TunablesPresets` | `set` | A preset set, by slot |
-| `TunablesAssign` | `set`, `subject`, `slot`, `label?` | The preset one subject follows for one slot |
+| `TunablesAssign` | `set`, `subject`, `for-slot`, `label?` | The preset one subject follows for one slot |
 | `TunablesCatalog` | `catalog` | A catalog's entries |
 | `TunablesFieldHint` | `label`, `help?`, `defaultDisplay?` | The question mark beside a label, for your own forms |
 
@@ -126,7 +126,7 @@ assigned it, and its history; create, edit, make default and remove.
 row in the admin's list of workspaces:
 
 ```vue
-<TunablesAssign set="plans" :subject="workspace.id" slot="plan" label="Plan" />
+<TunablesAssign set="plans" :subject="workspace.id" for-slot="plan" label="Plan" />
 ```
 
 It offers *Follow the default* and every preset in the slot, and emits

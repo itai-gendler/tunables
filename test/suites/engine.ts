@@ -76,6 +76,20 @@ describe('definitions', () => {
 })
 
 describe('reading', () => {
+  it('lists a history newest first past ten revisions', async () => {
+    for (let count = 1; count <= 11; count++) await tunables.save('readers', { briefsPerReader: count }, { actor: 'test' })
+    const ids = (await tunables.history('readers', { limit: 50 })).map(revision => Number(revision.id))
+    expect(ids).toEqual([...ids].sort((a, b) => b - a))
+    expect(ids.length).toBeGreaterThan(11)
+  })
+
+  it('reads freshly synced values as unchanged, whatever order the store keeps object keys in', async () => {
+    for (const group of ['collection', 'run', 'readers'] as const) {
+      expect((await tunables.entry(group)).changed).toEqual([])
+    }
+  })
+
+
   it('reads nothing before sync, then the defaults, typed', async () => {
     const unsynced = make(memoryStore())
     await expect(unsynced.get('run')).rejects.toBeInstanceOf(TunablesMissing)
