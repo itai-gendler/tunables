@@ -2,7 +2,7 @@
 title: API reference
 description: Every export of the tunables package, by the subpath it is imported from.
 group: Reference
-order: 24
+order: 27
 ---
 
 # API reference
@@ -31,15 +31,16 @@ an optional peer dependency.
 | Export | What it is |
 | --- | --- |
 | `defineGroup(definition)` | A group of settings. See [Settings and groups](./settings-and-groups.md). |
-| `definePresets(definition)` | A preset set. See [Presets](./presets.md). |
+| `definePresets(definition)` | A preset set, or with `layer` a layer of a group at a scope. See [Presets](./presets.md). |
 | `defineCatalog(definition)` | A catalog. See [Catalogs](./catalogs.md). |
 | `defineEffects(effects)` | What changing a setting changes, by id. |
-| `number`, `range`, `size`, `toggle`, `choice`, `choices`, `text`, `pick` | Field builders. See [Kinds and units](./kinds-and-units.md). |
+| `number`, `range`, `size`, `toggle`, `choice`, `choices`, `text`, `pick` | Field builders. Each takes `override` for where a scope may set its own value. See [Kinds and units](./kinds-and-units.md) and [Scopes](./scopes.md). |
 | `BUILT_IN_UNITS`, `formatAmount(value, unit)` | The built-in units, and how an amount reads in one. |
 | `fieldLabel(key, field)`, `formatValue(field, value, unitOf)`, `fieldSchema(key, field, unitOf)` | A field's name, its value as it reads, and its zod check. |
 | `defaultsOf(fields)`, `toProblems(result)` | The defaults fields declare; a rule's result as problems. |
 | `defineEnvironment(definitions)`, `env`, `renderEnvExample(environment, header?)`, `EnvironmentError` | [Deployment values](./deployment-values.md). |
 | `explain(explanations, entity, fact)` | A fact's explanation from a generated explanations module. |
+| `scopeEntries(chain, path)`, `scopeKey(entries)`, `parseScopeKey(key)` | A [scope](./scopes.md) path in chain order, checked; its stored key, `workspace=acme;user=dana`; and back. |
 
 **The engine**
 
@@ -53,17 +54,18 @@ an optional peer dependency.
 | `TunablesUnknown` | A name the definitions do not declare: a programming error. |
 
 `createTunables` takes `store`, `groups`, and optionally `presets`, `catalogs`,
-`units`, `effects`, `explanations`, `guards`, `notes` and `uses`. It returns:
+`units`, `effects`, `explanations`, `guards`, `notes`, `uses`, `scopes` (the
+chain, broadest first) and `scopeLabel(scope, id)`. It returns:
 
 | Member | Does |
 | --- | --- |
-| `get(group, { lastGood? })` | The group's values, typed. |
-| `entry(group, { host? })` | Values, defaults, what changed, how each reads, notes, and who changed it last. |
+| `get(group, { scope?, lastGood? })` | The group's values, typed: the system's, or as read at a scope path. |
+| `entry(group, { host?, scope? })` | Values, defaults, what changed, how each reads, notes, and who changed it last; at a scope, also `scope` and each field's `layers`. |
 | `overview()` | Every group's entry. |
 | `save(group, values, change?)` | Change fields, checked whole. Returns an `Outcome`. |
-| `reset(group, keys?, change?)` | Put fields back at their defaults, checked. |
-| `history(groupOrTarget, { limit?, before? })` | Revisions, newest first. |
-| `restore(revisionId, change?)` | Restore a group's revision, checked. |
+| `reset(group, keys?, change?)` | Put fields back at their defaults, checked; at a scope, use the inherited values again. |
+| `history(groupOrTarget, { limit?, before? })` | Revisions, newest first. A scope's are `{ kind: 'group', name, id: scopeKey }`. |
+| `restore(revisionId, change?)` | Restore a group's revision, checked; a scope's revision restores that scope's own values. |
 | `sync(change?)` | Store what the definitions add. Returns a `SyncReport`. |
 | `presets(set)` | `list`, `get`, `create`, `update`, `remove`, `makeDefault`, `assign`, `assignments`, `resolve`. |
 | `catalog(id)` | `list`, `get`, `available`, `add`, `edit`, `retire`, `reinstate`, `usedBy`. |
@@ -72,8 +74,10 @@ an optional peer dependency.
 | `describe()` | Every definition as plain JSON, for the screens. |
 | `definitions`, `store` | What it was created with. |
 
-`change` is `{ actor?, reason?, confirmed?, host? }`. Types for all of these are
-exported too: `Outcome`, `Problem`, `RuleResult`, `GroupEntry`, `SyncReport`,
+`change` is `{ actor?, reason?, confirmed?, host?, scope? }`. In `save`, a
+value of `null` at a scope uses the inherited value again. Types for all of
+these are exported too: `Outcome`, `Problem`, `RuleResult`, `GroupEntry`,
+`FieldLayer`, `ScopePath`, `OverrideRule`, `SyncReport`,
 `Guard`, `NotesProvider`, `UsesProvider`, `Actor`, `ChangeOptions`, `Preset`,
 `CatalogEntry`, `Revision`, `RevisionTarget`, `TunablesStore`, `StoreSession`,
 `Description` and more.
@@ -86,7 +90,7 @@ exported too: `Outcome`, `Problem`, `RuleResult`, `GroupEntry`, `SyncReport`,
 | `fromPg(poolOrClient)` | A node-postgres `Pool`, `Client` or pool client as a `SqlClient`. |
 | `fromPostgresJs(sql)` | A postgres.js `sql` or transaction as a `SqlClient`. |
 | `asExecutor(host)` | Any of those, or a `SqlExecutor`, as an executor; what `within` uses. |
-| `migrate(client, { schema? })` | Create the tables if they are missing. |
+| `migrate(client, { schema? })` | Create the tables if they are missing, and bring older ones up to date. |
 | `tunablesSql({ schema? })` | The DDL, for your own migrations. |
 | `lockKeyFor(schema)` | The advisory lock key a schema gets by default. |
 
@@ -109,7 +113,8 @@ Types: `SqlExecutor`, `SqlClient`, `PostgresStoreOptions`. See
 | `errorResponse(error)` | The status and body an error answers with. |
 
 Types: `HandlerOptions`, `ServiceOptions`, `TunablesService`, `Action`,
-`AccessTarget`. See [Server and access](./server.md).
+`AccessTarget` (`{ kind, id?, scope? }`). See [Server and access](./server.md)
+and [Who can do what](./access.md).
 
 ## tunables/express
 
@@ -134,7 +139,9 @@ Type: `TunablesRouter`.
 | `TunablesClientError` | A request the server refused or could not answer, with its `status`. |
 | `displayValue(field, value, entryLabel?)` | A value as it reads, from the field's description. |
 
-Types: `TunablesClient`, `PresetSummary`, `CatalogEntrySummary`, and the
+`group(id, scope?)`, `save(id, { values, scope? })` and
+`reset(id, { keys?, scope? })` take a scope path. Types: `TunablesClient`,
+`PresetSummary`, `CatalogEntrySummary`, `ScopePath`, `FieldLayer`, and the
 description types.
 
 ## tunables/vue
@@ -142,14 +149,14 @@ description types.
 | Export | What it is |
 | --- | --- |
 | `TUNABLES_CLIENT`, `provideTunables(client)`, `useTunablesClient()` | Providing and reading the client. |
-| `useTunablesDescription()`, `useGroupForm(group)`, `useOverview()`, `useHistory(target, { pageSize? })`, `usePresets(set)`, `useCatalog(catalog)` | Headless screens. See [Vue composables](./vue-composables.md). |
+| `useTunablesDescription()`, `useGroupForm(group, { scope? })`, `useOverview()`, `useHistory(target, { pageSize? })`, `usePresets(set)`, `useCatalog(catalog)` | Headless screens. See [Vue composables](./vue-composables.md). |
 | `useUnloadGuard(dirty)` | Ask before unloading with unsaved changes. |
 | `displayValue` | As in `tunables/client`. |
 
 ## tunables/nuxt
 
 A Nuxt layer, used with `extends: ['tunables/nuxt']`. Components:
-`TunablesGroupForm`, `TunablesOverview`, `TunablesHistory`,
+`TunablesGroupForm` (with an optional `scope`), `TunablesOverview`, `TunablesHistory`,
 `TunablesPresets`, `TunablesAssign`, `TunablesCatalog`, `TunablesFieldHint`.
 App config: `tunables.baseURL`. Composable: `useTunablesLeaveGuard(dirty, message?)`.
 See [The Nuxt layer](./nuxt-layer.md).

@@ -20,41 +20,93 @@ import {
 
 /** Units of the app's own, beside the built-in ones. */
 export const units = {
-  'dollars-per-million': { label: 'dollars per million tokens', format: (value: number) => `$${value} per million tokens` }
+  cents: { label: 'cents', format: (value: number) => `${value}¢` }
 } satisfies Record<string, Unit>
 
 /** What changing a setting changes. `warn` marks what costs money or reaches people. */
 export const effects = defineEffects({
-  readers: { label: 'What readers get', icon: 'i-lucide-users' },
-  load: { label: 'Worker, database or publisher load', icon: 'i-lucide-gauge' },
-  cost: { label: 'Model cost', warn: true, icon: 'i-lucide-coins' }
+  members: { label: 'What everyone in the workspace sees', icon: 'i-lucide-users' },
+  cost: { label: 'AI cost', warn: true, icon: 'i-lucide-coins' }
 })
 
-export const collection = defineGroup({
-  id: 'collection',
-  title: 'Collection Settings',
-  description: 'How often Feeds are collected, and the bounds every retrieval stays within.',
-  entity: 'collection-settings', // with a Product Model: the Entity whose facts these fields are
-  place: { label: 'Feeds › Settings', href: '/admin/feeds/settings' },
+/** Where a setting may take its own value, broadest first. Only when the app has tenants. */
+export const scopes = ['workspace', 'user'] as const
+
+export const limits = defineGroup({
+  id: 'limits',
+  title: 'Limits',
+  description: 'How much a workspace may hold and use. A workspace takes its plan\'s limits, and its owner may lower them.',
+  entity: 'limits', // with a Product Model: the Entity whose facts these fields are
+  place: { label: 'Admin › Limits', href: '/admin/limits' },
   fields: {
-    refreshMinutes: number({ fact: 'Refresh interval', unit: 'minutes', default: 60, section: 'Scheduled collection', affects: ['load', 'readers'] }),
-    scheduledCollection: choice({
-      fact: 'Scheduled collection',
-      options: [{ value: 'off', label: 'Off' }, { value: 'brief-feeds', label: 'Feeds Briefs read' }],
-      default: 'brief-feeds',
-      section: 'Scheduled collection',
-      affects: ['load', 'readers']
-    }),
-    attemptSeconds: number({ fact: 'Attempt time limit', unit: 'seconds', default: 300, section: 'Bounds', affects: ['load'] }),
-    jobExpirySeconds: number({ fact: 'Job expiry', unit: 'seconds', default: 360, section: 'Bounds', affects: ['load'] }),
-    maxArticlesPerRetrieval: number({ fact: 'Most articles per retrieval', unit: 'count', default: 500, section: 'Bounds', affects: ['readers'] }),
-    newFeedFullText: toggle({ fact: 'New-feed full text', default: true, section: 'What a new Feed starts with', affects: ['readers', 'cost'] })
-  },
-  rules: (values) => {
-    const problems: string[] = []
-    if (!(values.jobExpirySeconds > values.attemptSeconds)) problems.push('Job expiry must be longer than Attempt time limit.')
-    return problems
+    maxProjects: number({ fact: 'Projects', unit: 'count', default: 3, max: 10000, affects: ['members'], override: { workspace: 'at-most' } }),
+    aiSuggestionsPerDay: number({ fact: 'AI suggestions a day', unit: 'count', default: 20, min: 0, max: 10000, affects: ['cost'], override: { workspace: 'at-most', user: 'at-most' } })
   }
+})
+
+export const workspace = defineGroup({
+  id: 'workspace',
+  title: 'Workspace',
+  description: 'How a workspace works for everyone in it.',
+  entity: 'workspace',
+  place: { label: 'Workspace settings', href: '/workspace' },
+  fields: {
+    defaultView: choice({ fact: 'Default view', options: [{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }], default: 'list', affects: ['members'], override: ['workspace', 'user'] }),
+    dueSoonDays: number({ fact: 'Due soon', unit: 'days', default: 2, max: 30, affects: ['members'], override: ['workspace', 'user'] }),
+    archiveAfterDays: number({ fact: 'Archive done tasks after', unit: 'days', default: 30, max: 365, affects: ['members'], override: ['workspace'] }),
+    guestAccess: toggle({ fact: 'Guests', default: false, affects: ['members'], override: ['workspace'] }),
+    suggestionModel: pick({ fact: 'Suggestion model', catalog: 'models', default: 'small', affects: ['cost'] }) // staff only
+  },
+  rules: values => values.dueSoonDays > values.archiveAfterDays
+    ? [{ key: 'dueSoonDays', message: 'Due soon may not be longer than the time before done tasks are archived.' }]
+    : [],
+  confirm: (next, previous) => next.guestAccess && !previous.guestAccess
+    ? 'Guests will see every task in the project they are invited to, including its comments and attachments.'
+    : undefined
+})
+
+export const tasks = defineGroup({
+  id: 'tasks',
+  title: 'Tasks',
+  description: 'How tasks repeat.',
+  entity: 'tasks',
+  place: { label: 'Admin › Tasks', href: '/admin/tasks' },
+  fields: {
+    longestRepeatDays: number({ fact: 'Longest repeat', unit: 'days', default: 90, max: 365, affects: ['members'] })
+  }
+})
+
+/** Plans: a layer of Limits at the workspace, between the system value and the workspace's own. */
+export const plans = definePresets({
+  id: 'plans',
+  title: 'Plans',
+  singular: 'Plan',
+  entity: 'plan',
+  place: { label: 'Admin › Plans', href: '/admin/plans' },
+  slots: ['plan'],
+  layer: { group: 'limits', scope: 'workspace' },
+  fields: {
+    maxProjects: number({ fact: 'Projects', unit: 'count', default: 3, max: 10000 }),
+    aiSuggestionsPerDay: number({ fact: 'AI suggestions a day', unit: 'count', default: 20, min: 0, max: 10000 })
+  },
+  seed: [
+    { key: 'free', slot: 'plan', label: 'Free', values: { maxProjects: 3, aiSuggestionsPerDay: 5 } },
+    { key: 'pro', slot: 'plan', label: 'Pro', values: { maxProjects: 50, aiSuggestionsPerDay: 100 } }
+  ]
+})
+
+export const models = defineCatalog({
+  id: 'models',
+  title: 'Models',
+  singular: 'Model',
+  entity: 'model',
+  idLabel: 'Model id',
+  labelField: 'label',
+  fields: {
+    label: text({ fact: 'Label', default: '', optional: false, maxLength: 80 }),
+    centsPerSuggestion: number({ fact: 'Cost a suggestion', unit: 'cents', default: 1, affects: ['cost'] })
+  },
+  seed: [{ id: 'small', values: { label: 'Small and quick', centsPerSuggestion: 1 } }]
 })
 
 export const environment = defineEnvironment({
@@ -63,16 +115,16 @@ export const environment = defineEnvironment({
   APP_LOG_LEVEL: env.choice({ options: ['debug', 'info', 'warn', 'error'], default: 'info', description: 'How much the server logs.', section: 'Mechanics' })
 })
 
-export const groups = [collection] as const
-export const presets = [] as const
-export const catalogs = [] as const
+export const groups = [limits, workspace, tasks] as const
+export const presets = [plans] as const
+export const catalogs = [models] as const
 ```
 
 Without a Product Model, drop `entity` and `fact`, and give each field `help`
-(and `label` when the key does not read well). Preset sets
-(`definePresets`) and catalogs (`defineCatalog`) follow the same pattern; the
-`tunables-define` skill's references cover their fields, `within`, `rules`,
-`seed` and `pick`.
+(and `label` when the key does not read well). Without tenants, drop `scopes`,
+every `override` and the `layer`: every value is then the system's. The
+`tunables-define` skill's references cover fields, `override`, `within`,
+`rules`, `seed` and `pick` in detail.
 
 ## The app's tunables
 
@@ -85,9 +137,9 @@ connect on their first query, so boot stays database-free.
 import { createTunables } from 'tunables'
 import { fromPg, postgresStore, type SqlClient } from 'tunables/postgres'
 import { pool } from './db' // the app's own pg.Pool
-import { catalogs, effects, groups, presets, units } from './settings'
+import { catalogs, effects, groups, presets, scopes, units } from './settings'
 import { explanations } from './tunables-explanations' // generated by `tunables explain`; add once it exists
-import { collectionNotes, feedsWithin } from './feeds'
+import { modelsInUse, recurringWithin, scopeLabel, workspaceNotes } from './tasks'
 
 export function makeTunables(client: SqlClient = fromPg(pool)) {
   return createTunables({
@@ -98,9 +150,11 @@ export function makeTunables(client: SqlClient = fromPg(pool)) {
     units,
     effects,
     explanations,
-    guards: { collection: [feedsWithin] },
-    notes: { collection: collectionNotes },
-    uses: {} // catalog id → names of app data using an entry, so it cannot be retired
+    scopes, // only with tenants
+    scopeLabel, // (scope, id) => 'Acme': how a workspace or person reads in refusals and screens
+    guards: { tasks: [recurringWithin] },
+    notes: { workspace: workspaceNotes },
+    uses: { models: modelsInUse } // catalog id → names of app data using an entry, so it cannot be retired
   })
 }
 
@@ -255,9 +309,27 @@ export const router = { ...appRouter, tunables: tunablesRouter<AppContext>({ tun
 - `authorize(context, { action, target, actor })` returns whether this actor
   may do this. `action` is `read` or `change`; `target.kind` is `description`,
   `group`, `presets`, `catalog` or `history`, and `target.id` names the group,
-  preset set or catalog when there is one. Without `authorize`, nothing is
-  allowed. Decide it from the app's existing roles; never return `true` for
-  everyone.
+  preset set or catalog when there is one. For a group's read, change, history
+  and restore at a scope, `target.scope` is the path, such as
+  `{ workspace: 'acme' }`. Without `authorize`, nothing is allowed. Decide it
+  from the app's existing roles; never return `true` for everyone.
+- With scopes, let owners and members change only their own path, and let
+  them read the description, which their settings screen needs:
+
+  ```ts
+  authorize: async (event, { target }) => {
+    const user = await currentUser(event)
+    if (!user) return false
+    if (user.staff) return true
+    if (target.kind === 'description') return true
+    if (target.kind !== 'group' || !target.scope?.workspace) return false
+    if (target.scope.user) return target.scope.user === user.id && await isMember(user.id, target.scope.workspace)
+    return isOwner(user.id, target.scope.workspace)
+  }
+  ```
+
+  A malformed path is answered 400 only to someone `authorize` admits; anyone
+  else gets the usual refusal.
 - `refusal` is `not-found` by default, so an outsider cannot tell the
   administration exists; `forbidden` answers 401/403 instead.
 - `host(context)` hands guards, notes and uses the request's database or
@@ -282,7 +354,7 @@ affects (the group's `place`), behind the app's own admin route guard:
 
 | Component | Props | Shows |
 | --- | --- | --- |
-| `TunablesGroupForm` | `group`, `history?` | One group's form by section, with effects, problems, confirmation and history |
+| `TunablesGroupForm` | `group`, `scope?`, `history?` | One group's form by section, with effects, problems, confirmation and history; given a `scope`, only the fields that scope may set, each with what it inherits and from where |
 | `TunablesOverview` | — | All settings: every group, its values, what differs from default, where each is edited |
 | `TunablesPresets` | `set` | A preset set: create, edit, make default, remove |
 | `TunablesAssign` | `set`, `subject`, `slot`, `label?` | Which preset one subject follows for one slot |
@@ -318,17 +390,22 @@ provideTunables(fetchClient({ baseURL: '/api/tunables' })) // in the root compon
 Read at the point of use, every time; a read is one query.
 
 ```ts
-const { refreshMinutes, scheduledCollection } = await useTunables().get('collection')
+const { longestRepeatDays } = await useTunables().get('tasks')
+// A value a workspace or a person may set: read at their path.
+const { aiSuggestionsPerDay } = await useTunables().get('limits', { scope: { workspace: workspace.id, user: user.id } })
 ```
 
 - No fallback: `get` returns every field or throws `TunablesMissing` (not
   synced) or `TunablesInvalid` (a stored value fails its check). A `?? 60`
   beside it is a second home of the default.
+- A read without `scope` is the system value. Wherever a workspace's or a
+  person's own value applies, pass the path; never pick between a tenant's
+  row and the setting by hand.
 - Do not capture settings at module scope or at boot; that needs a restart
   to change. A long-running worker re-reads each tick, with
   `{ lastGood: true }` to keep the last good values through a transient
   failure.
-- An in-process cache refreshes with `useTunables().onChange('collection', values => …)`.
+- An in-process cache refreshes with `useTunables().onChange('tasks', values => …)`.
 - A write that depends on a setting holds it inside the app's transaction, so
   a concurrent lowering waits for it, and checks against the held values:
 
@@ -336,9 +413,9 @@ const { refreshMinutes, scheduledCollection } = await useTunables().get('collect
   await sql.begin(async (tx) => {
     const scoped = useTunables().within(tx)
     await scoped.hold()
-    const { maxArticlesPerRetrieval } = await scoped.get('collection')
-    if (input.maxArticles > maxArticlesPerRetrieval) throw new Error(`A Feed may read at most ${maxArticlesPerRetrieval} articles.`)
-    await tx`update feeds set max_articles = ${input.maxArticles} where id = ${input.id}`
+    const { longestRepeatDays } = await scoped.get('tasks')
+    if (input.repeatDays > longestRepeatDays) throw new Error(`A task may repeat at most every ${longestRepeatDays} days.`)
+    await tx`update tasks set repeat_days = ${input.repeatDays} where id = ${input.id}`
   })
   ```
 
@@ -346,11 +423,12 @@ const { refreshMinutes, scheduledCollection } = await useTunables().get('collect
   transaction, a node-postgres client inside `begin`, or any object with
   `query(text, params)`. A Drizzle transaction object is not one.
 - A preset is resolved per subject and slot; keep its `key` with what it
-  produced:
+  produced. A preset set that is a `layer` is already in `get(group, { scope })`;
+  resolve it only to show or record which plan applied:
 
   ```ts
-  const config = await useTunables().presets('run-configs').resolve(reader.id, 'daily')
-  // config.key, config.label, config.assigned, config.values
+  const plan = await useTunables().presets('plans').resolve(workspace.id, 'plan')
+  // plan.key, plan.label, plan.assigned, plan.values
   ```
 
 - Deployment values come from the environment definitions, read once at start
@@ -361,24 +439,33 @@ const { refreshMinutes, scheduledCollection } = await useTunables().get('collect
 ## Guards, notes and uses
 
 ```ts
-import type { Guard, NotesProvider } from 'tunables'
+import type { Guard, NotesProvider, UsesProvider } from 'tunables'
 
-/** Lowering the maximum below a Feed's own count is refused, naming the Feed. */
-export const feedsWithin: Guard = async ({ next, host }) => {
+/** Lowering the Longest repeat below a recurring task's own is refused, naming the task. */
+export const recurringWithin: Guard = async ({ next, host }) => {
   const db = (host as typeof sql | undefined) ?? sql // the CLI passes no host
-  const limit = Number(next.maxArticlesPerRetrieval)
-  const over = await db`select name, max_articles from feeds where max_articles > ${limit}`
-  return over.map(feed => `Feed "${feed.name}" reads ${feed.max_articles} articles, above the Most articles per retrieval of ${limit}.`)
+  const limit = Number(next.longestRepeatDays)
+  const over = await db`select title, repeat_days from tasks where repeat_days > ${limit}`
+  return over.map(task => `Task "${task.title}" repeats every ${task.repeat_days} days, above the Longest repeat of ${limit} days.`)
 }
 
 /** What a value means here and now, shown under the field. */
-export const collectionNotes: NotesProvider = async ({ host }) => {
-  const [{ count }] = await ((host as typeof sql | undefined) ?? sql)`select count(*)::int as count from feeds where official`
-  return { scheduledCollection: `Every Feed would collect ${count} official Feeds.` }
+export const workspaceNotes: NotesProvider = async ({ values, host }) => {
+  const [{ count }] = await ((host as typeof sql | undefined) ?? sql)`select count(*)::int as count from tasks where done_at < now() - make_interval(days => ${Number(values.archiveAfterDays)})`
+  return { archiveAfterDays: `${count} done tasks would be archived tonight.` }
 }
+
+/** What uses a model besides what tunables finds itself (presets and settings that pick it). */
+export const modelsInUse: UsesProvider = async ({ entry, host }) =>
+  (await projectsPinnedTo(entry, host)).map(project => `Project "${project.name}"`)
+
+/** How a scope reads to a person: the workspace's or the person's name. */
+export const scopeLabel = async (scope: string, id: string) => (scope === 'workspace' ? await workspaceName(id) : await personName(id)) ?? id
 ```
 
-A guard must work without `host`: `tunables set` from the CLI passes none.
+A guard must work without `host`: `tunables set` from the CLI passes none. A
+guard also receives `scope`, the path saved (`{}` for the system), and `next`
+as read there.
 
 ## The deploy step
 
@@ -395,6 +482,12 @@ pnpm db:migrate && npx tunables sync
 
 The job needs the environment `connect` reads, such as `DATABASE_URL`.
 
+With plans as a layer, assign each workspace its plan once, from a one-off
+script through the engine
+(`tunables.presets('plans').assign(workspaceId, 'plan', 'pro', { actor, reason })`),
+before moving a workspace's own values with `tunables set … --scope`: an
+override is checked against the plan it inherits.
+
 ## .env.example
 
 `tunables env` rewrites `.env.example` from the environment definitions: each
@@ -407,10 +500,10 @@ drifts.
 
 ```ts
 import { setForTest, testTunables } from 'tunables/testing'
-import { catalogs, effects, groups, presets, units } from '../server/settings'
+import { catalogs, effects, groups, presets, scopes, units } from '../server/settings'
 
-const tunables = await testTunables({ groups, presets, catalogs, units, effects }) // in memory, synced
-await setForTest(tunables, { collection: { refreshMinutes: 1 } }) // past rules, guards and confirmations
+const tunables = await testTunables({ groups, presets, catalogs, units, effects, scopes }) // in memory, synced
+await setForTest(tunables, { tasks: { longestRepeatDays: 7 } }) // past rules, guards and confirmations
 ```
 
 Make the code under test take its tunables (an argument, or the app's

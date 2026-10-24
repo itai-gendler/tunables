@@ -32,35 +32,35 @@ because both your app and the CLI load it.
 ```ts [server/settings.ts]
 import { defineGroup, number, toggle } from 'tunables'
 
-export const readers = defineGroup({
-  id: 'readers',
-  title: 'Reader Limits',
-  description: 'What each reader keeps, and how often they may ask for work the product pays for.',
-  place: { label: 'Readers › Limits', href: '/admin/readers/limits' },
+export const limits = defineGroup({
+  id: 'limits',
+  title: 'Limits',
+  description: 'How much a workspace may hold and use.',
+  place: { label: 'Admin › Limits', href: '/admin/limits' },
   fields: {
-    briefsPerReader: number({
-      label: 'Briefs per reader',
-      help: 'How many Briefs one reader may keep.',
+    maxProjects: number({
+      label: 'Projects',
+      help: 'The most projects a workspace may have open at once.',
       unit: 'count',
-      default: 12,
-      section: 'What a reader keeps'
+      default: 3,
+      section: 'What a workspace holds'
     }),
-    siteChecksPerHour: number({
-      label: 'Site checks an hour',
-      help: 'How often one reader may ask to check a site.',
-      unit: 'count',
-      default: 30,
-      section: 'How often a reader may ask'
+    attachmentMb: number({
+      label: 'Attachment size',
+      help: 'The largest file a task may carry.',
+      unit: 'megabytes',
+      default: 10,
+      section: 'What a workspace holds'
     }),
-    invitesOpen: toggle({
-      label: 'Invitations open',
-      help: 'Whether readers may invite others.',
+    aiSuggestions: toggle({
+      label: 'AI suggestions',
+      help: 'Whether people may ask for suggested tasks.',
       default: true
     })
   }
 })
 
-export const groups = [readers] as const
+export const groups = [limits] as const
 ```
 
 Each field states its kind (`number`, `toggle`, and [six more](./kinds-and-units.md)),
@@ -119,7 +119,7 @@ npx tunables sync
 ```
 
 ```
-✓ seeded readers with its defaults
+✓ seeded limits with its defaults
 ```
 
 `sync` stores each new group at its defaults, as a revision. Run it in every
@@ -129,12 +129,12 @@ was never synced cannot be read.
 ## 5. Read a setting
 
 Read at the point of use, every time. A read is one query and returns typed
-values: `briefsPerReader` is a `number` here.
+values: `maxProjects` is a `number` here.
 
 ```ts
-const { briefsPerReader } = await tunables.get('readers')
-if (briefs.length >= briefsPerReader) {
-  throw createError({ statusCode: 409, message: `A reader keeps at most ${briefsPerReader} Briefs.` })
+const { maxProjects } = await tunables.get('limits')
+if (openProjects >= maxProjects) {
+  throw createError({ statusCode: 409, message: `A workspace may have ${maxProjects} open projects.` })
 }
 ```
 
@@ -193,9 +193,9 @@ export default defineNuxtConfig({
 Then put the form on the page beside what it affects, behind your own admin
 route guard:
 
-```vue [app/pages/admin/readers/limits.vue]
+```vue [app/pages/admin/limits.vue]
 <template>
-  <TunablesGroupForm group="readers" />
+  <TunablesGroupForm group="limits" />
 </template>
 ```
 
@@ -209,20 +209,23 @@ lists the group's history with a way to restore. Add an All settings page with
 Change a value on the screen, or from a terminal:
 
 ```bash
-npx tunables set readers briefsPerReader=6 --reason "Fewer while we test"
-npx tunables history readers
+npx tunables set limits maxProjects=5 --reason "More room on the free tier"
+npx tunables history limits
 ```
 
 ```
 Saved as revision 2.
-#2  2026-10-23T09:12:44.021Z  ada (terminal)  “Fewer while we test”
-    briefsPerReader: 12 → 6
+#2  2026-10-23T09:12:44.021Z  ada (terminal)  “More room on the free tier”
+    maxProjects: 3 → 5
 #1  2026-10-23T09:02:10.518Z  ada (terminal)  “Seeded with the defaults.”
-    briefsPerReader: null → 12; siteChecksPerHour: null → 30; invitesOpen: null → true
+    maxProjects: null → 3; attachmentMb: null → 10; aiSuggestions: null → true
 ```
 
 ## Next
 
+- Let each workspace, or each person, set its own value within what it
+  inherits: see [Scopes](./scopes.md), and [Who can do what](./access.md) for
+  letting them reach their own screen.
 - Add [rules, guards and confirmations](./checks-and-guards.md) so a change
   cannot break what depends on it.
 - Move environment variables that are really deployment values into

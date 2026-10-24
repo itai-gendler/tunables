@@ -17,8 +17,11 @@ more. tunables gives each of them one home:
 - **See and undo every change**: one revision per change, restore through the
   same checks.
 - **Embed the screens** in your own administration, in your own Nuxt UI look.
-- **Presets and catalogs** for named configurations assigned by reference, and
-  lists of allowed choices that keep what is in use.
+- **Per workspace and per person**: each workspace and person sets its own
+  value, within the plan, where a field allows it. Every value says where it
+  comes from, and a broader change never strands a narrower one.
+- **Presets and catalogs** for named configurations assigned by reference, such
+  as plans, and lists of allowed choices that keep what is in use.
 - **Built for coding agents**: a CLI, agent skills, and field explanations from
   a [pdd-kit](https://pdd-kit.dev) Product Model.
 
@@ -30,20 +33,20 @@ npm i tunables
 import { createTunables, defineGroup, number } from 'tunables'
 import { fromPostgresJs, migrate, postgresStore } from 'tunables/postgres'
 
-export const run = defineGroup({
-  id: 'run',
-  title: 'Run Settings',
+export const limits = defineGroup({
+  id: 'limits',
+  title: 'Limits',
   fields: {
-    budgetLimitUsd: number({ label: 'Budget limit', unit: 'dollars', integer: false, default: 25, affects: ['cost'] })
+    maxProjects: number({ label: 'Projects', unit: 'count', default: 3, override: { workspace: 'at-most' } })
   }
 })
 
 const client = fromPostgresJs(sql) // your postgres.js or node-postgres client
 await migrate(client)
-export const tunables = createTunables({ store: postgresStore(client), groups: [run], effects: { cost: { label: 'Model cost', warn: true } } })
+export const tunables = createTunables({ store: postgresStore(client), groups: [limits], scopes: ['workspace', 'user'] })
 
 await tunables.sync()
-const { budgetLimitUsd } = await tunables.get('run')
+const { maxProjects } = await tunables.get('limits', { scope: { workspace: 'acme' } })
 ```
 
 Mount the API in your server and embed the screens:
@@ -59,7 +62,8 @@ export default defineNuxtConfig({ extends: ['tunables/nuxt'] })
 ```
 
 ```vue
-<TunablesGroupForm group="run" />
+<TunablesGroupForm group="limits" />
+<TunablesGroupForm group="limits" :scope="{ workspace: 'acme' }" />
 ```
 
 Install the agent skills into your repository:
@@ -71,11 +75,24 @@ npx tunables install
 ## Documentation
 
 [tunables.dev](https://tunables.dev) · [Quickstart](docs/quickstart.md) ·
-[Concepts](docs/settings-and-groups.md) · [CLI](docs/cli.md) · [Skills](docs/skills.md)
+[What it is for](docs/patterns.md) · [Concepts](docs/settings-and-groups.md) ·
+[Scopes](docs/scopes.md) · [Who can do what](docs/access.md) ·
+[CLI](docs/cli.md) · [Skills](docs/skills.md)
 
-`fixture/` holds a complete example: the settings, Run Configs and permitted
-models of the news app tunables was extracted from. `playground/` embeds its
-screens in a Nuxt app.
+## Examples
+
+[Tasklane](docs/tasklane-example.md), a todo app with workspaces and people, is
+the example throughout the docs:
+
+- [`examples/tasklane`](examples/tasklane/tunables.ts): its limits, workspace
+  settings, plans, models and scopes, its access policy and its CLI config.
+- [`examples/express`](examples/express/app.ts) and
+  [`examples/hono`](examples/hono/app.ts): Tasklane served by Express and by
+  Hono, with routes of its own that read each person's values. Run
+  `npx jiti examples/express/server.ts` or `npx jiti examples/hono/server.ts`.
+- [`playground/`](playground/package.json): Tasklane as a Nuxt app over oRPC,
+  with staff, a workspace owner and a member to switch between.
+  Run `pnpm --dir playground dev`.
 
 ## Contributing
 

@@ -51,13 +51,14 @@ and the home page and a docs page also run in dark.
 ## Voice
 
 Plain, specific, active. Say what tunables does with the real words it uses:
-the home page's refusals are the library's own messages for the news fixture.
-No marketing adjectives, no emoji, no exclamation marks. Short paragraphs.
+the home page's refusals are the library's own messages for Tasklane, the
+example todo app in `examples/tasklane`. No marketing adjectives, no emoji, no
+exclamation marks. Short paragraphs.
 
 ## Home page
 
 The words live in `app/utils/homeContent.ts`. Sections, in order: hero (with a
-working dial demo of the fixture's Story limit), where settings live today,
+working dial demo of Projects on Tasklane's Pro plan), where settings live today,
 how it works, guardrails, built for coding agents, it attaches, and the close.
 Headings are left-aligned on the reading edge; each section says where it
 continues in its corner.

@@ -2,7 +2,7 @@
 title: Agent skills
 description: Three skills that let a coding agent adopt tunables, define settings the right way and verify that every value has one home.
 group: Skills
-order: 20
+order: 23
 ---
 
 # Agent skills
@@ -44,6 +44,8 @@ applies. For example:
 
 - *"Adopt tunables in this app."* runs `tunables-adopt`.
 - *"Make the retry count tunable."* runs `tunables-define`.
+- *"Let each workspace lower its AI suggestions a day, never above its
+  plan."* runs `tunables-define`, which declares the field's `override`.
 - *"Check our settings, report only."* runs `tunables-verify` without
   changing anything.
 
@@ -60,7 +62,8 @@ Or name the skill: `/tunables-define add a setting for the export batch size`.
   the skills run `sync`, `set` or `restore` only as part of a change you
   approved.
 - **They never write tunables' tables directly.** Values move through saves
-  and `tunables set`, with a reason, so the history records each move.
+  and `tunables set`, with a reason, so the history records each move; a
+  workspace's or a person's own value moves at its scope, with `--scope`.
 - **They never decide product meaning in code.** What a setting is, who tunes
   it and what it starts at are product decisions. In a repository with a
   [pdd-kit](https://pdd-kit.dev) Product Model, they draft the facts with

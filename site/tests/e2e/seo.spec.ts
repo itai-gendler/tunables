@@ -16,7 +16,7 @@ test.describe('link previews', () => {
 
 test('the sitemap lists every page on tunables.dev', async ({ request }) => {
   const sitemap = await (await request.get('/sitemap.xml')).text()
-  for (const path of ['/', '/changelog', '/docs', '/docs/quickstart', '/docs/news-example']) {
+  for (const path of ['/', '/changelog', '/docs', '/docs/quickstart', '/docs/tasklane-example']) {
     expect(sitemap).toContain(`<loc>https://tunables.dev${path === '/' ? '/' : path}</loc>`)
   }
 })

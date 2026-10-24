@@ -4,7 +4,7 @@ import SectionHead from '~/components/landing/home/SectionHead.vue'
 
 /**
  * What a save is checked against, each with the answer tunables gives, word
- * for word, for the news fixture. The answer is the evidence; the heading only
+ * for word, for Tasklane, the example app. The answer is the evidence; the heading only
  * names it.
  */
 const { guardrails } = homeContent

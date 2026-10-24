@@ -1,8 +1,9 @@
 /**
  * The home page's words, in one place, so they can be reviewed without reading
  * a template. Every example is real: the refusals are the messages tunables
- * gives for the news fixture (`fixture/news.ts` in the repository), and every
- * code sample uses the published API. See docs/brand.md for the voice.
+ * gives for Tasklane, the example todo app (`examples/tasklane/tunables.ts` in
+ * the repository), except a guard's, which is the app's own words; every code
+ * sample uses the published API. See docs/brand.md for the voice.
  */
 
 export interface HomeLink {
@@ -52,7 +53,7 @@ export const homeContent = {
   hero: {
     eyebrow: 'Open-source TypeScript library',
     title: 'Runtime settings with guardrails, for the app you already run.',
-    description: 'Declare each setting once. tunables keeps its value in your Postgres, puts it on a screen inside your app, checks every change as a whole, and records who changed what, and why.',
+    description: 'Declare each setting once. tunables keeps its value in your Postgres, lets each workspace and person set its own within their plan, puts it on a screen inside your app, checks every change as a whole, and records who changed what, and why.',
     install: 'npm i tunables',
     installCopyLabel: 'Copy the install command',
     primary: { label: 'Read the quickstart', to: '/docs/quickstart' },
@@ -60,28 +61,27 @@ export const homeContent = {
   },
 
   /**
-   * The hero's panel: the news fixture's Story limit, with the checks a save of
-   * it runs. The Run Configs and their Story ceilings are the fixture's seeds;
-   * the messages are the ones `rules` and `within` return.
+   * The hero's panel: Tasklane's Pro plan, a layer of its Limits, and the check
+   * a save of it runs. Acme and Hobby club are on Pro and each keeps fewer
+   * Projects than the plan allows; the message is the one tunables returns when
+   * a broader value would leave an override above it.
    */
   demo: {
-    group: 'Run Settings',
-    section: 'Limits every Run Config and Run stays within',
-    field: 'Story limit',
-    help: 'The most Stories any Edition may hold.',
+    group: 'Pro plan',
+    section: 'What a workspace on Pro may hold',
+    field: 'Projects',
+    help: 'The most projects a workspace may have open at once.',
     min: 1,
-    max: 30,
-    initial: 24,
-    defaultValue: 24,
-    /** Sections per edition × Stories per section, the fixture's defaults. */
-    ceiling: 24,
-    ceilingProblem: 'The Story limit may not exceed Sections per edition times Stories per section.',
-    affects: ['What readers get', 'Run Configs checked against it'],
-    presets: [
-      { label: 'Daily brief', ceiling: 10 },
-      { label: 'Weekly brief', ceiling: 15 }
+    max: 60,
+    initial: 50,
+    defaultValue: 50,
+    affects: ['What everyone in the workspace sees'],
+    /** Workspaces on Pro that keep their own, lower Projects. */
+    overrides: [
+      { label: 'Acme', value: 20 },
+      { label: 'Hobby club', value: 35 }
     ],
-    caption: 'The news fixture\'s Story limit, with the checks a save of it runs. Turn it down past a Run Config.'
+    caption: 'Tasklane\'s Pro plan, with the check a save of it runs. Turn Projects down past what a workspace keeps.'
   },
 
   problem: {
@@ -110,19 +110,21 @@ export const homeContent = {
     steps: [
       {
         title: 'Declare it once',
-        text: 'Each setting states its kind, unit, default, explanation and what changing it affects. Its check, its stored seed, its API schema and its form input all follow from that one declaration.',
+        text: 'Each setting states its kind, unit, default, explanation, what changing it affects and where a workspace or person may set its own. Its check, its stored seed, its API schema and its form input all follow from that one declaration.',
         file: 'settings.ts',
         code: `import { defineGroup, number } from 'tunables'
 
-export const readers = defineGroup({
-  id: 'readers',
-  title: 'Reader Limits',
+export const limits = defineGroup({
+  id: 'limits',
+  title: 'Limits',
   fields: {
-    briefsPerReader: number({
-      label: 'Briefs per reader',
+    maxProjects: number({
+      label: 'Projects',
       unit: 'count',
-      default: 12,
-      help: 'How many Briefs one reader may keep.'
+      default: 3,
+      // A workspace may lower it, never raise it.
+      override: { workspace: 'at-most' },
+      help: 'The most projects a workspace may have open at once.'
     })
   }
 })`,
@@ -137,18 +139,21 @@ import { fromPg, postgresStore } from 'tunables/postgres'
 
 export const tunables = createTunables({
   store: postgresStore(fromPg(pool)),
-  groups: [readers]
+  groups: [limits],
+  scopes: ['workspace', 'user']
 })
 
-const { briefsPerReader } = await tunables.get('readers')`,
+const { maxProjects } = await tunables.get('limits', {
+  scope: { workspace: 'acme' }
+})`,
         more: { label: 'Storage', to: '/docs/storage' }
       },
       {
         title: 'Embed the screens',
-        text: 'Mount one handler in your server, extend the Nuxt layer, and put a form where the setting matters. The screens take your Nuxt UI theme.',
-        file: 'pages/admin/readers/limits.vue',
+        text: 'Mount one handler in your server, extend the Nuxt layer, and put a form where the setting matters: for your staff, or for one workspace\'s owner. The screens take your Nuxt UI theme.',
+        file: 'pages/workspace/limits.vue',
         code: `<template>
-  <TunablesGroupForm group="readers" />
+  <TunablesGroupForm group="limits" :scope="{ workspace: 'acme' }" />
 </template>`,
         more: { label: 'The Nuxt layer', to: '/docs/nuxt-layer' }
       },
@@ -156,12 +161,12 @@ const { briefsPerReader } = await tunables.get('readers')`,
         title: 'Change it safely',
         text: 'From the screen or the terminal, a change goes through the same checks and becomes a revision you can read and restore.',
         file: 'terminal',
-        code: `$ npx tunables set readers briefsPerReader=6 --reason "Fewer while we test"
+        code: `$ npx tunables set limits maxProjects=20 --scope workspace=acme --reason "Acme asked for fewer"
 Saved as revision 14.
 
-$ npx tunables history readers --limit 1
-#14  2026-10-23T09:12:44.021Z  ada (terminal)  “Fewer while we test”
-    briefsPerReader: 12 → 6`,
+$ npx tunables history limits --scope workspace=acme --limit 1
+#14  2026-10-23T09:12:44.021Z  ada (terminal)  “Acme asked for fewer”
+    maxProjects: null → 20`,
         more: { label: 'History and restore', to: '/docs/history-and-restore' }
       }
     ] satisfies Step[]
@@ -174,45 +179,45 @@ $ npx tunables history readers --limit 1
     more: { label: 'Checks and guards', to: '/docs/checks-and-guards' },
     items: [
       {
+        title: 'Each scope sets its own, within',
+        text: 'Each workspace and person sets its own values, only for the fields declared for them, and never past what they inherit from the plan.',
+        api: 'override',
+        answer: 'Projects may be at most 50 for Acme, the value it inherits.',
+        tone: 'refused'
+      },
+      {
         title: 'Rules across settings',
-        text: 'Settings that bound one another are checked together on every save.',
+        text: 'Settings that bound one another are checked together on every save, at every scope.',
         api: 'rules',
-        answer: 'Job heartbeat must be shorter than Job expiry.',
+        answer: 'Due soon may not be longer than the time before done tasks are archived.',
         tone: 'refused'
       },
       {
         title: 'Guards for what you keep',
-        text: 'Your own records that depend on a setting are checked against the new value.',
+        text: 'Your own records that depend on a setting are checked against the new value, in your own words.',
         api: 'guards',
-        answer: 'Feed "Ars Technica" reads 300 articles, above the Most articles per retrieval of 200.',
-        tone: 'refused'
-      },
-      {
-        title: 'Presets stay within limits',
-        text: 'Lowering a limit never strands a preset above it; the save names the one in the way.',
-        api: 'within',
-        answer: 'Run Config "Weekly brief": its Story ceiling, 15, is above the Story limit of 12.',
+        answer: 'Acme has 42 projects open, more than the 30 this change allows.',
         tone: 'refused'
       },
       {
         title: 'Entries in use stay available',
         text: 'A catalog entry something still picks cannot be retired from under it.',
         api: 'catalog().retire',
-        answer: 'GPT-OSS 20B (Groq) is in use by Run Config "Daily brief", Run Config "Weekly brief"; move them to another model first.',
+        answer: 'Small and quick is in use by Workspace › Suggestion model; move them to another model first.',
         tone: 'refused'
       },
       {
-        title: 'Confirmations for costly changes',
+        title: 'Confirmations for changes with consequences',
         text: 'A change with consequences is saved only when it is sent again, confirmed.',
         api: 'confirm',
-        answer: 'Changing Screening reason length redoes every saved Screening judgment the next time each Brief is screened, which costs model calls.',
+        answer: 'Guests will see every task in the project they are invited to, including its comments and attachments.',
         tone: 'asks'
       },
       {
         title: 'Restore through the same checks',
         text: 'Every change is a revision with each value before and after. Restoring one is a save like any other.',
         api: 'restore',
-        answer: 'Restored revision 9. The launch traffic is over.',
+        answer: 'Restored revision 9. The import is done.',
         tone: 'kept'
       }
     ] satisfies Guardrail[]

@@ -1,6 +1,6 @@
 ---
 name: tunables-define
-description: Add, change, rename or remove one setting, settings group, preset set, catalog or deployment value in an app that already uses tunables — deciding where the value belongs, its kind, unit, default, bounds, section, effects and Product Model fact, the rules, guards, within checks and confirmations that keep it safe, and the reads, stored values, tests and checks that follow. Use when the user asks to add a setting, make a value tunable, change a default or a bound, add a preset field or catalog field, add an environment variable, or rename or remove any of these; do not use to bring tunables into an app that has none (use tunables-adopt) or to audit the whole app (use tunables-verify).
+description: Add, change, rename or remove one setting, settings group, preset set, catalog or deployment value in an app that already uses tunables — deciding where the value belongs, its kind, unit, default, bounds, section, effects and Product Model fact, the rules, guards, within checks and confirmations that keep it safe, and the reads, stored values, tests and checks that follow. Use when the user asks to add a setting, make a value tunable, change a default or a bound, let a workspace or user set their own value, add a preset field or catalog field, add an environment variable, or rename or remove any of these; do not use to bring tunables into an app that has none (use tunables-adopt) or to audit the whole app (use tunables-verify).
 ---
 
 # Define one value
@@ -57,7 +57,7 @@ and `restore` call the config's `connect`.
 ## 2. Decide what changes
 
 5. Classify the request: **add**, **change** (default, bounds, options, kind,
-   unit, section, effects, fact), **rename**, **move** (between groups, or
+   unit, section, effects, fact, where it may be overridden), **rename**, **move** (between groups, or
    between the environment and a setting), or **remove**; and what it is:
    a group field, a whole group, a preset set or its field, a catalog or its
    field, or a deployment value.
@@ -83,6 +83,11 @@ and `restore` call the config's `connect`.
 
 10. Choose with [kinds-and-units.md](references/kinds-and-units.md): key, kind,
     unit, default, bounds, `section`, `affects`, and `fact` or `label`/`help`.
+    When the app declares `scopes`, decide with
+    [where-a-value-goes.md](references/where-a-value-goes.md#per-workspace-and-per-person-scopes)
+    whether a workspace or a person may set their own (`override`, freely or
+    `at-most`/`at-least` what it inherits), and whether a plan set that is a
+    `layer` of the group should carry it too.
 11. Choose with
     [guards-and-confirmations.md](references/guards-and-confirmations.md): the
     `rules` it joins, the guard for app data that depends on it (and the
@@ -99,8 +104,10 @@ and `restore` call the config's `connect`.
 13. Edit the definitions module. Add any new effect id to `effects` and any new
     unit to `units`; `createTunables` refuses an unknown one.
 14. Replace each read with `tunables.get(group)` at the point of use, and delete
-    the old constant, fallback or environment read. For a deployment value,
-    read it through the environment definitions.
+    the old constant, fallback or environment read. A field with `override`
+    is read at the path it applies to:
+    `tunables.get(group, { scope: { workspace, user } })`. For a deployment
+    value, read it through the environment definitions.
 15. Wire the guard, `hold`, `notes` or `uses` in the app's tunables instance
     and on the write paths that need them.
 16. Apply the recipe below for what happens to stored values.
@@ -146,8 +153,22 @@ what is missing. Plan each environment explicitly.
   stored presets with the screens or the API before tightening.
 - **Catalog field.** Entries are validated on their next edit; `seed` runs only
   when the catalog is empty.
+- **Allow an override, or loosen its bound.** Nothing stored changes; each
+  scope inherits until someone sets its own.
+- **Stop allowing an override at a scope.** Overrides already stored there
+  are kept and still read, and can no longer be cleared from that scope. First
+  list them (`tunables get <group> --scope workspace=<id>` per scope, or the
+  scoped screen), clear each with
+  `tunables set <group> --scope workspace=<id> --inherit <key> --reason …`,
+  then ship the narrowed `override`.
+- **Bound an override that was free.** A stored override outside the new bound
+  stays until the next save at that scope or above it, which is then refused
+  naming it. Move each inside with `tunables set <group> --scope … key=value`
+  before shipping.
 
-Use `tunables set` for groups; presets and catalog entries change through the
+Use `tunables set` for groups, with `--scope workspace=acme,user=dana` for a
+scope's own values and `--inherit key1,key2` to use the inherited values there
+again; presets and catalog entries change through the
 screens, the API or the app's own code calling `tunables.presets(id)` and
 `tunables.catalog(id)`. Hand the user the exact commands for environments you
 cannot reach.
@@ -159,17 +180,23 @@ cannot reach.
     `setForTest(tunables, { group: { key: value } })` starts a test past rules
     and guards. Cover each new rule, guard and confirmation through `save`:
     refused with its problem, confirmation asked, then saved with
-    `{ confirmed: true }`.
+    `{ confirmed: true }`. For a field with `override`, pass the app's `scopes`
+    and `scopeLabel` and test a scoped save: refused outside its bound, and a
+    broader change refused while a narrower override would fall outside it.
 19. A field added to a group already shown by `TunablesGroupForm` appears by
     itself; a new group or preset set needs its page at its `place`, and an
-    entry in navigation. When the app keeps screenshot baselines, update them
-    the way its instructions say.
+    entry in navigation. A newly overridable field appears on the scoped forms
+    (`<TunablesGroupForm group="…" :scope="{ workspace }" />`) by itself; a
+    group with its first `override` needs those pages, and an `authorize` that
+    lets owners and members change only their own `target.scope`. When the
+    app keeps screenshot baselines, update them the way its instructions say.
 
 ## 8. Finish
 
 20. Run `tunables check`, then the app's typecheck, lint and tests.
 21. Report:
-    - what changed in the definitions, with the field as declared;
+    - what changed in the definitions, with the field as declared, including
+      where it may be overridden;
     - its home and why;
     - reads replaced and old homes removed;
     - checks added: rules, guards and holds, within, confirm;

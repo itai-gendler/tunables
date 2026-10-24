@@ -2,7 +2,7 @@
 title: Server and access
 description: Mount tunables' API as a fetch handler in Nitro, Hono, Bun or Deno, as Express middleware or as an oRPC router, with access decided by your app.
 group: Integrate
-order: 11
+order: 13
 ---
 
 # Server and access
@@ -39,9 +39,11 @@ interface ServiceOptions<Context> {
   the actor's name.
 - **`authorize`** says whether this actor may do this. It is asked on every
   request. `action` is `read` or `change`; `target.kind` is `description`,
-  `group`, `presets`, `catalog` or `history`, and `target.id` names the group,
-  preset set or catalog when there is one. **Without `authorize`, nothing is
-  allowed.**
+  `group`, `presets` or `catalog`, and `target.id` names the group, preset set
+  or catalog when there is one. For a group, `target.scope` is the
+  [scope](./scopes.md) path the request reads or changes, such as
+  `{ workspace: 'acme' }`, and is absent for the whole system. **Without
+  `authorize`, nothing is allowed.**
 - **`refusal`** decides how a refused request answers. The default,
   `not-found`, answers 404, so an outsider cannot tell the administration
   exists. `forbidden` answers 401 to nobody signed in and 403 to someone who
@@ -63,6 +65,8 @@ export const access: Pick<ServiceOptions<AppContext>, 'actor' | 'authorize'> = {
 ```
 
 Spread it into whichever adapter you use: `createHandler({ tunables, ...access })`.
+[Who can do what](./access.md) walks through the usual cases, including
+letting a workspace's owner and each person change only their own scope.
 
 When your own code calls `save`, `reset`, `restore` or a preset or catalog
 change directly, it decides access itself first, then passes `{ actor, reason }`.
@@ -130,15 +134,19 @@ Bun.serve({
 
 `Deno.serve` takes the same function.
 
+[`examples/hono`](https://github.com/itai-gendler/tunables/tree/main/examples/hono)
+runs Tasklane this way, with its own route beside the handler:
+`npx jiti examples/hono/server.ts`.
+
 ### Routes
 
 | Method | Path | Does |
 | --- | --- | --- |
 | `GET` | `describe` | The definitions, as the screens need them |
 | `GET` | `groups` | Every group's entry |
-| `GET` / `PUT` | `groups/:id` | Read a group's entry; save a change |
-| `POST` | `groups/:id/reset` | Reset fields to their defaults |
-| `GET` | `history?kind=&name=&id=&limit=&before=` | A target's revisions |
+| `GET` / `PUT` | `groups/:id` | Read a group's entry, at `?scope=` when given; save a change |
+| `POST` | `groups/:id/reset` | Reset fields to their defaults, or at a scope to what it inherits |
+| `GET` | `history?kind=&name=&id=&limit=&before=` | A target's revisions; for a scope's, `id` is its key |
 | `POST` | `restore` | Restore a group's revision |
 | `GET` / `POST` | `presets/:set` | List a set's presets; create one |
 | `PUT` / `DELETE` | `presets/:set/:key` | Update a preset; remove it |
@@ -149,7 +157,11 @@ Bun.serve({
 | `PUT` | `catalogs/:id/:entry` | Edit an entry |
 | `POST` | `catalogs/:id/:entry/retire`, `…/reinstate` | Retire or reinstate an entry |
 
-Bodies are JSON. A save sends `{ values, reason?, confirmed? }`.
+Bodies are JSON. A save sends `{ values, reason?, confirmed?, scope? }`, and a
+reset `{ keys?, reason?, scope? }`. A scope is an object,
+`{ "workspace": "acme" }`, or its key, `workspace=acme;user=dana`, which is
+also how `?scope=` writes it. A value of `null` at a scope uses the inherited
+value again.
 
 ### Answers
 
@@ -157,7 +169,9 @@ Bodies are JSON. A save sends `{ values, reason?, confirmed? }`.
   whether it was saved or refused. **A refused change is an answer, not an
   error**: it carries `saved: false` and its `problems`, or a `confirm`
   question.
-- A malformed request answers 400, naming what is wrong.
+- A malformed request answers 400, naming what is wrong, but only to someone
+  allowed to read the description; anyone else is refused as for any other
+  request.
 - A refused request answers 404, or 401 and 403 with `refusal: 'forbidden'`.
   An unknown group, preset set or catalog answers 404.
 - Stored values that no longer pass, or a group not yet synced, answer 409
@@ -184,6 +198,8 @@ app.use(tunablesMiddleware({
 The middleware answers under its `basePath` and calls `next()` for everything
 else. Its context is the Express request, so `actor` and `authorize` read your
 session from it. It works with or without a body parser in front of it.
+[`examples/express`](https://github.com/itai-gendler/tunables/tree/main/examples/express)
+runs Tasklane this way: `npx jiti examples/express/server.ts`.
 
 ## oRPC
 
@@ -207,7 +223,9 @@ export const router = {
 A refused change is an answer with `problems`, as over HTTP. Errors become
 oRPC errors with the matching code: `BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`,
 `NOT_FOUND`, `CONFLICT` or `INTERNAL_SERVER_ERROR`. The screens call the router
-through [`orpcClient`](./nuxt-layer.md#another-client).
+through [`orpcClient`](./nuxt-layer.md#another-client). The repository's
+`playground/` nests the router this way; see
+[Tasklane](./tasklane-example.md#the-playground).
 
 ## The service itself
 

@@ -2,7 +2,7 @@
 title: Checks and guards
 description: Rules across settings, guards for what your app keeps, within for presets, confirmations for costly changes, and notes.
 group: Concepts
-order: 5
+order: 6
 ---
 
 # Checks and guards
@@ -21,7 +21,8 @@ When `save`, `reset` or `restore` changes a group, tunables:
 3. checks each field on its own, from its [kind](./kinds-and-units.md);
 4. runs the group's **`rules`**;
 5. runs every preset set's **`within`** against the settings as they would be
-   after the change;
+   after the change, and refuses a change that would leave a workspace's or a
+   person's own value outside its [bound](./scopes.md#bounds);
 6. runs the group's **guards**, with your transaction or request as `host`;
 7. stops if nothing changed: the save succeeds without a revision;
 8. asks the group's **`confirm`** question, unless the change is `confirmed`;
@@ -51,22 +52,21 @@ fields by their labels, say the limit, and say what is in the way.
 whole group as it would be after the change, with its types.
 
 ```ts
-export const collection = defineGroup({
-  id: 'collection',
-  title: 'Collection Settings',
+export const workspace = defineGroup({
+  id: 'workspace',
+  title: 'Workspace',
   fields: {
-    attemptSeconds: number({ label: 'Attempt time limit', unit: 'seconds', default: 300 }),
-    jobExpirySeconds: number({ label: 'Job expiry', unit: 'seconds', default: 360 }),
-    jobHeartbeatSeconds: number({ label: 'Job heartbeat', unit: 'seconds', default: 30 })
+    dueSoonDays: number({ label: 'Due soon', unit: 'days', default: 2, max: 30, override: ['workspace', 'user'] }),
+    archiveAfterDays: number({ label: 'Archive done tasks after', unit: 'days', default: 30, max: 365, override: ['workspace'] })
   },
-  rules: (values) => {
-    const problems: string[] = []
-    if (!(values.jobExpirySeconds > values.attemptSeconds)) problems.push('Job expiry must be longer than Attempt time limit.')
-    if (!(values.jobHeartbeatSeconds < values.jobExpirySeconds)) problems.push('Job heartbeat must be shorter than Job expiry.')
-    return problems
-  }
+  rules: values => values.dueSoonDays > values.archiveAfterDays
+    ? [{ key: 'dueSoonDays', message: 'Due soon may not be longer than the time before done tasks are archived.' }]
+    : []
 })
 ```
+
+At a [scope](./scopes.md), `rules` runs on the values as read there after the
+change: Dana's *Due soon* is checked against the archive time Acme sets.
 
 Because `rules` sees only its own group, settings that bound one another
 belong in one group.
@@ -74,24 +74,26 @@ belong in one group.
 ## Guards for what your app keeps
 
 A guard checks the records your app keeps that depend on a group: lowering
-*Most articles per retrieval* below what a Feed is configured to read would
-strand that Feed. Guards are registered per group when you create tunables, so
+*Tasks per project* below what a project already holds would strand that
+project. Guards are registered per group when you create tunables, so
 they can reach your database.
 
 ```ts
 import { createTunables, type Guard } from 'tunables'
 
-const feedsWithinBounds: Guard = async ({ next, host }) => {
+const projectsWithinLimit: Guard = async ({ next, scope, host }) => {
   const db = (host as typeof sql | undefined) ?? sql // the CLI passes no host
-  const limit = Number(next.maxArticlesPerRetrieval)
-  const over = await db`select name, max_articles from feeds where max_articles > ${limit}`
-  return over.map(feed => `Feed "${feed.name}" reads ${feed.max_articles} articles, above the Most articles per retrieval of ${limit}.`)
+  const limit = Number(next.maxTasksPerProject)
+  const over = scope.workspace
+    ? await db`select name, open_tasks from projects where workspace = ${scope.workspace} and open_tasks > ${limit}`
+    : await db`select name, open_tasks from projects where open_tasks > ${limit}`
+  return over.map(project => `Project "${project.name}" has ${project.open_tasks} open tasks, above the ${limit} allowed.`)
 }
 
 export const tunables = createTunables({
   store,
   groups,
-  guards: { collection: [feedsWithinBounds] }
+  guards: { limits: [projectsWithinLimit] }
 })
 ```
 
@@ -100,8 +102,9 @@ A guard receives:
 | Argument | What it is |
 | --- | --- |
 | `group` | The group's id. |
-| `next` | The group's values as they would be after the change. |
-| `previous` | The values stored now. |
+| `scope` | Where the change is made: `{}` for the whole system, or a path such as `{ workspace: 'acme' }`. |
+| `next` | The group's values as they would be after the change, as read at `scope`. |
+| `previous` | The values now, as read at `scope`. |
 | `session` | The store session the save runs in. |
 | `host` | What the save was given as `host`: from the server's `host` option, or from the code that called `save`. |
 
@@ -111,22 +114,22 @@ problems ends the check.
 
 ### Holding the settings while you write
 
-A guard reads your records at the moment of the save. If your app is writing
-a Feed at that same moment, against the old limit, the guard cannot see it
+A guard reads your records at the moment of the save. If your app is adding
+a task at that same moment, against the old limit, the guard cannot see it
 yet. `hold` closes that gap: inside your own transaction, take tunables' lock
 in shared mode before you read the limit and write the record. A change to
 tunables takes the same lock exclusively, so a lowering waits until your write
-commits, and its guard then sees the new Feed.
+commits, and its guard then sees the new task.
 
 ```ts
 await sql.begin(async (tx) => {
   const scoped = tunables.within(tx)
   await scoped.hold()
-  const { maxArticlesPerRetrieval } = await scoped.get('collection')
-  if (input.maxArticles > maxArticlesPerRetrieval) {
-    throw new Error(`A Feed may read at most ${maxArticlesPerRetrieval} articles.`)
+  const { maxTasksPerProject } = await scoped.get('limits', { scope: { workspace: project.workspace } })
+  if (project.openTasks >= maxTasksPerProject) {
+    throw new Error(`A project may hold ${maxTasksPerProject} open tasks.`)
   }
-  await tx`update feeds set max_articles = ${input.maxArticles} where id = ${input.id}`
+  await tx`insert into tasks (project_id, title) values (${project.id}, ${input.title})`
 })
 ```
 
@@ -139,24 +142,39 @@ a preset is saved, and on every group save, against every stored preset. So
 lowering a limit below a preset is refused, naming the preset:
 
 ```
-Run Config "Weekly brief": its Story ceiling, 15, is above the Story limit of 12.
+Plan "Team": its Projects, 500, is above the ceiling of 400.
 ```
 
 See [Presets](./presets.md#within).
 
+## Overrides stay within their bounds
+
+A workspace's or a person's own value is checked against what it inherits,
+and every broader change is checked against the values below it. Raising
+Acme's *Projects* above its plan, or editing the plan below what Acme keeps,
+is refused, naming the scope:
+
+```
+Projects may be at most 50 for Acme, the value it inherits.
+Plan "Pro": Acme keeps Projects at 20, above 10.
+```
+
+See [Scopes](./scopes.md#refusals).
+
 ## Confirmations for costly changes
 
-Some changes are allowed but have consequences: they cost money, or redo work.
+Some changes are allowed but have consequences: they cost money, redo work,
+or show something to more people.
 `confirm` compares the change with what is stored and returns the question to
 answer, or nothing.
 
 ```ts
-export const run = defineGroup({
-  id: 'run',
-  title: 'Run Settings',
+export const workspace = defineGroup({
+  id: 'workspace',
+  title: 'Workspace',
   fields: { /* … */ },
-  confirm: (next, previous) => next.screeningReasonWords !== previous.screeningReasonWords
-    ? 'Changing Screening reason length redoes every saved Screening judgment the next time each Brief is screened, which costs model calls.'
+  confirm: (next, previous) => next.guestAccess && !previous.guestAccess
+    ? 'Guests will see every task in the project they are invited to, including its comments and attachments.'
     : undefined
 })
 ```
@@ -165,9 +183,10 @@ A change that asks comes back with `saved: false` and `confirm` set, and
 nothing is stored. Send the same change again with `confirmed: true` to save it:
 
 ```ts
-let outcome = await tunables.save('run', { screeningReasonWords: 20 }, { actor })
+const acme = { workspace: 'acme' }
+let outcome = await tunables.save('workspace', { guestAccess: true }, { actor, scope: acme })
 if (outcome.confirm && await askPerson(outcome.confirm)) {
-  outcome = await tunables.save('run', { screeningReasonWords: 20 }, { actor, confirmed: true })
+  outcome = await tunables.save('workspace', { guestAccess: true }, { actor, scope: acme, confirmed: true })
 }
 ```
 
@@ -177,19 +196,21 @@ a person never confirms a change that would be refused anyway.
 
 ## Notes
 
-A note says what a value means here and now, under the field: *"Every Feed
-would collect 12 official Feeds."* Notes are read-only; they never refuse
+A note says what a value means here and now, under the field: *"312 done
+tasks would be archived tonight."* Notes are read-only; they never refuse
 anything. Register a notes provider per group:
 
 ```ts
 import type { NotesProvider } from 'tunables'
 
-const collectionNotes: NotesProvider = async ({ host }) => {
-  const [{ count }] = await ((host as typeof sql | undefined) ?? sql)`select count(*)::int as count from feeds where official`
-  return { scheduledCollection: `Every Feed would collect ${count} official Feeds.` }
+const workspaceNotes: NotesProvider = async ({ values, host }) => {
+  const db = (host as typeof sql | undefined) ?? sql
+  const [{ count }] = await db`select count(*)::int as count from tasks
+    where done_at < now() - make_interval(days => ${Number(values.archiveAfterDays)}) and not archived`
+  return { archiveAfterDays: `${count} done tasks would be archived tonight.` }
 }
 
-createTunables({ store, groups, notes: { collection: collectionNotes } })
+createTunables({ store, groups, notes: { workspace: workspaceNotes } })
 ```
 
 It returns, by field key, a note or a list of notes. They reach the screens in
@@ -197,8 +218,9 @@ the group's [entry](./settings-and-groups.md#the-entry).
 
 ## Catalog entries in use
 
-A catalog's entries cannot be retired while something uses them. Presets that
-pick an entry count on their own; register `uses` to add what your app keeps.
+A catalog's entries cannot be retired while something uses them. Settings and
+presets that pick an entry count on their own; register `uses` to add what
+your app keeps.
 See [Catalogs](./catalogs.md#what-uses-an-entry).
 
 ## Testing your checks

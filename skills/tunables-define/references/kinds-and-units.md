@@ -15,12 +15,12 @@ All builders are exported from `tunables`.
 | choice | `choice({ options, default })` | one option value | one of the options |
 | choices | `choices({ options, default, minimum? })` | option values | only listed options, no repeats, at least `minimum` (1 by default) |
 | text | `text({ default, maxLength?, optional?, multiline? })` | `string` | at most `maxLength`; `optional: false` refuses empty text |
-| pick | `pick({ catalog, default })` | an entry id | in a preset: an entry of that catalog, Available when newly picked |
+| pick | `pick({ catalog, default })` | an entry id | an entry of that catalog, Available when newly picked |
 
-Options are strings or `{ value, label }`. A `pick` belongs in a preset set:
-there a save checks the entry exists and is Available, and the entry cannot
-be retired while picked. In a group, a `pick` is checked only as a non-empty
-id.
+Options are strings or `{ value, label }`. A `pick`, in a preset set or a
+group, is checked on save: the entry exists and is Available (a retired entry
+may stay picked while unchanged). The entry cannot be retired while a preset,
+a group's value or a scope's override picks it.
 
 Every default must pass its own field's check; `createTunables` refuses the
 definitions otherwise. (Catalog field defaults are exempt: an entry is always
@@ -58,8 +58,8 @@ A unit may set `label`, `min`, `max`, `integer` and `format`. A field naming
 a unit that is not defined is refused when tunables is created.
 
 Store in the unit the person tunes in. Minutes stay minutes; convert at the
-read (`refreshMinutes * 60_000`). Put the unit in the key
-(`refreshMinutes`, `budgetLimitUsd`, `articleTextCharacters`) so a read cannot
+read (`archiveAfterDays * 86_400_000`). Put the unit in the key
+(`archiveAfterDays`, `attachmentMb`, `dueSoonDays`) so a read cannot
 mistake it. Fractional amounts need `integer: false`.
 
 ## Bounds
@@ -70,6 +70,8 @@ mistake it. Fractional amounts need `integer: false`.
 - `min`/`max` on a number add to the unit's own. The unit's `min` replaces the
   "more than 0" rule; to allow 0, set `min: 0`.
 - A bound that depends on another setting is a `rules` check, not a `max`.
+- A bound on a workspace's or a person's own value is the field's `override`
+  rule (`at-most` or `at-least` what it inherits), not a `max`.
 - Tightening a bound can leave a stored value outside it, and reads then throw
   `TunablesInvalid`; move stored values first.
 
@@ -84,6 +86,7 @@ Every kind takes:
 | `help` | An explanation for a field the Product Model does not describe. With a fact, leave it out: it would override the model's words. |
 | `section` | The sub-heading the field sits under in its group's form. |
 | `affects` | Effect ids from `effects`: what changing it changes. Unknown ids are refused. |
+| `override` | Where the field may take its own value, at the scopes `createTunables({ scopes })` declares: a list (`['workspace', 'user']`, set freely), or per scope `'free'`, `'at-most'` or `'at-least'` the value it inherits (`{ workspace: 'at-most' }`, numbers only). Absent: set only for the whole system. |
 
 Effects are declared once with `defineEffects({ id: { label, warn?, icon? } })`.
 `warn: true` marks an effect that costs money or reaches people; it is shown
@@ -98,19 +101,19 @@ each field names a fact listed under that Entity's `## Information kept`:
 ```markdown
 ## Information kept
 
-- **Refresh interval** — how long after its last complete collection a Feed is requested again; defaults to 60 minutes
+- **Archive done tasks after** — how long a done task stays in its project before it is archived; defaults to 30 days
 ```
 
 `tunables model draft` drafts lines like this for fields the model lacks, for
 `/pdd-ideate` to decide (with a default for group fields). Wherever the model
 states a default, `tunables check` compares it with the field's default as it
-reads ("60 minutes", "$0.10", "On", "400 × 225 pixels"),
+reads ("30 days", "$0.10", "On", "400 × 225 pixels"),
 by its numbers or, without numbers, by its words.
 
 ## Keys and ids
 
 - Field keys are camelCase with the unit in them. Group, preset set and
-  catalog ids are short and lowercase (`collection`, `run-configs`).
+  catalog ids are short and lowercase (`limits`, `plans`, `models`).
 - Preset keys are lowercase words with single hyphens (`daily-light`).
 - An id is stored; changing one is a rename, with its stored values moved
   across.

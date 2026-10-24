@@ -2,7 +2,7 @@
 title: Check and generate
 description: The commands that need no database — checking definitions, writing .env.example, and keeping explanations and defaults in step with a pdd-kit Product Model.
 group: CLI
-order: 17
+order: 20
 ---
 
 # Check and generate: check, env, explain, model draft
@@ -31,10 +31,10 @@ Checks, without a database, everything that must hold:
   and a default the model states is the field's own.
 
 ```
-✓ 3 groups, 1 preset sets and 1 catalogs are defined soundly
-✓ env.example lists all 5 deployment values
+✓ 2 groups, 1 preset sets and 1 catalogs are defined soundly
+✓ env.example lists all 3 deployment values
 ✓ explanations.ts matches the Product Model
-✗ model: run.budgetLimitUsd defaults to $20, but Run Settings says "Budget limit" defaults to 25 dollars.
+✗ model: limits.maxProjects defaults to 5, but Limits says "Projects" defaults to 3.
 
 1 problem.
 ```
@@ -78,16 +78,16 @@ Then pass it to `createTunables`, and give fields a `fact` instead of `help`:
 ```ts
 import { explanations } from './tunables-explanations'
 
-const run = defineGroup({
-  id: 'run',
-  title: 'Run Settings',
-  entity: 'run-settings',
+const limits = defineGroup({
+  id: 'limits',
+  title: 'Limits',
+  entity: 'limits',
   fields: {
-    budgetLimitUsd: number({ fact: 'Budget limit', unit: 'dollars', integer: false, default: 25 })
+    maxProjects: number({ fact: 'Projects', unit: 'count', default: 3 })
   }
 })
 
-createTunables({ store, groups: [run], explanations })
+createTunables({ store, groups: [limits], explanations })
 ```
 
 `--check` only says whether the module is current. Never edit the module by
@@ -99,21 +99,21 @@ A [pdd-kit](https://pdd-kit.dev) Product Model keeps each Entity in
 `product-model/entities/<id>.md`. A group's `entity` is that id; each line under
 the Entity's `## Information kept` is a fact:
 
-```md [product-model/entities/run-settings.md]
-# Run Settings
+```md [product-model/entities/limits.md]
+# Limits
 
 ## Information kept
 
-- **Budget limit** — the most any Run may spend; defaults to 25 dollars
-- **Story limit** — the most Stories any Edition may hold; defaults to 24, and it is never more than Sections per edition times Stories per section
+- **Projects** — the most projects a workspace may have open at once; defaults to 3
+- **Attachment size** — the largest file a task may carry; defaults to 10 megabytes
 ```
 
 The bold name is the fact a field names. The words after the dash are its
 explanation; what follows `defaults to` is the default the model states, and
 `check` compares it with the field's own default as it reads, by its numbers:
-`25 dollars` agrees with `$25`, and `400 by 225 pixels` with
+`10 megabytes` agrees with `10 MB`, and `400 by 225 pixels` with
 `400 × 225 pixels`. Without numbers, the words must match, such as
-`Feeds Briefs read`.
+`List`.
 
 ## model draft
 

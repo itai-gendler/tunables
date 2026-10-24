@@ -63,12 +63,15 @@ call the config's `connect`.
    change, or `tunables-verify` for an audit.
 3. Learn the stack, because the wiring follows it:
    - the database and its client: Postgres through `pg`, `postgres` (postgres.js)
-     or Drizzle over one of them. tunables stores only in Postgres; with another
-     database, stop and tell the user.
+     or Drizzle over one of them. tunables ships Postgres storage; with another
+     database, stop and tell the user it needs a store written to tunables'
+     storage contract.
    - the server: Nuxt or Nitro, Hono, Bun, Express, oRPC, or another framework
      that speaks web `Request`/`Response`;
    - the screens: Nuxt UI, plain Vue, or another UI;
    - how sign-in works and who an administrator is;
+   - whether the app has tenants (workspaces, teams, accounts) or plans, and
+     who may change a workspace's or a person's own values;
    - where migrations run in development and in deployment;
    - the test runner, and whether screens have screenshot baselines.
 4. Note whether a pdd-kit Product Model exists (`product-model/` with
@@ -81,8 +84,9 @@ call the config's `connect`.
    limits, intervals, timeouts, sizes, retry counts, thresholds and budgets;
    every `process.env` (or `import.meta.env`, `useRuntimeConfig`) read; existing
    settings tables, JSON or YAML settings files and their seeds; admin forms
-   that edit them; feature switches; and named configurations the app keeps
-   several of.
+   that edit them; feature switches; named configurations the app keeps
+   several of; and values kept per workspace or per person beside a global
+   one, with the code that picks between them.
 6. For each, record where it is defined and every place it is read
    (`file:line`), its current value, any override that changes it per
    environment, and what depends on it.
@@ -92,7 +96,9 @@ call the config's `connect`.
 7. Place each value in exactly one home with the decision in
    [classifying-values.md](references/classifying-values.md): setting (in a
    group), preset set, catalog, deployment value, the app's own user data, or
-   code. Where the evidence does not settle it — would anyone tune this while
+   code; and for each setting, whether a workspace or a person may set their
+   own (`override`), and whether plans are a `layer` of its group. Where the
+   evidence does not settle it — would anyone tune this while
    the app runs? — mark it as a question for the user rather than guessing.
 8. Group the settings by what they govern and who tunes them, each group edited
    beside what it affects. Settings that bound one another belong in one group,
@@ -126,7 +132,9 @@ Follow [wiring.md](references/wiring.md) for each step, in this order.
 14. Write the definitions module: units, effects, groups, preset sets,
     catalogs and the environment, exported for the app and the config alike.
 15. Write the app's tunables instance over its own Postgres client, with its
-    guards, notes and uses, created lazily so boot never connects.
+    guards, notes and uses, and its `scopes` and `scopeLabel` when settings
+    are overridden per workspace or person, created lazily so boot never
+    connects.
 16. Store: `migrate` in the migrate step (or inside `connect`), the Drizzle
     tables from `tunables/drizzle` in the app's own schema, or `tunablesSql()`
     in a hand-written migration.
@@ -138,14 +146,20 @@ Follow [wiring.md](references/wiring.md) for each step, in this order.
     from `tunables/orpc` nested in the app's router.
 19. Decide access: `actor` from the app's own session, `authorize` from its own
     roles for each `read` and `change`, and `host` when guards need the
-    request's database.
+    request's database. With scopes, `authorize` reads `target.scope`, so a
+    workspace owner changes only their workspace and a person only their own
+    values.
 20. Add the screens beside what each group affects: `extends: ['tunables/nuxt']`
     and its components, or `tunables/vue` composables, or the app's own UI over
-    `tunables/client`. Add an All settings page with the overview.
+    `tunables/client`. Add an All settings page with the overview. With
+    scopes, add a workspace's and a person's own settings pages, each a
+    `TunablesGroupForm` given its `scope`.
 21. Add `tunables sync` to the deploy and migrate step, after the tables exist
     and before the new code serves.
-22. Replace each old read with `tunables.get(group)` at the point of use, and
-    each deployment value read with the environment. Delete each old constant,
+22. Replace each old read with `tunables.get(group)` at the point of use
+    (`tunables.get(group, { scope: { workspace, user } })` wherever a
+    workspace's or person's own value applies), and each deployment value read
+    with the environment. Delete each old constant,
     default and fallback as its read moves, so no second home survives.
 23. Declare every environment variable the app reads, then run `tunables env`.
     It rewrites `.env.example` entirely, so anything undeclared is dropped.
@@ -177,7 +191,10 @@ words, and a `label` when the key does not read well.
     declare. Then, for every value that environment ran with that differs from
     the default (an environment override, a settings row, a JSON file), run
     `tunables set <group> key=value ... --reason "Moved from <old home>"`, so
-    the history records the move. Never insert into tunables' tables directly.
+    the history records the move. A workspace's or a person's own value moves
+    the same way at its scope:
+    `tunables set <group> key=value --scope workspace=<id>[,user=<id>] --reason …`.
+    Never insert into tunables' tables directly.
 29. For environments you cannot reach, hand the user the exact `sync` and `set`
     commands per environment. Then remove the old homes: environment variables
     from deployment manifests, rows or files that held settings, and admin code
@@ -194,6 +211,8 @@ words, and a `label` when the key does not read well.
     - values left in code, and values that are user data, with why;
     - each old home removed, and any that remain with the reason;
     - values moved across, per environment, and commands handed to the user;
+    - the scopes declared, which fields each may override, and plans as a
+      layer;
     - the access decided, and where each screen lives;
     - Product Model facts drafted, decided and explained, or still pending;
     - `tunables check`, typecheck and test results;

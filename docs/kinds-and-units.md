@@ -2,7 +2,7 @@
 title: Kinds and units
 description: The eight kinds of setting, the built-in units, your own units, and how values are checked and read.
 group: Concepts
-order: 4
+order: 5
 ---
 
 # Kinds and units
@@ -28,26 +28,26 @@ reads to a person.
 import { choice, choices, number, pick, range, size, text, toggle } from 'tunables'
 
 const fields = {
-  checkIntervalMinutes: number({ label: 'Check interval', unit: 'minutes', default: 5 }),
-  largestResponseMegabytes: number({ label: 'Largest response', unit: 'megabytes', integer: false, default: 2 }),
-  storySummaryLength: range({ label: 'Story summary length', unit: 'characters', default: { min: 40, max: 360 } }),
-  imageMinimum: size({ label: 'Image minimum size', default: { width: 400, height: 225 } }),
-  newFeedFullText: toggle({ label: 'New-feed full text', default: true }),
-  scheduledCollection: choice({
-    label: 'Scheduled collection',
-    options: [{ value: 'off', label: 'Off' }, { value: 'brief-feeds', label: 'Feeds Briefs read' }],
-    default: 'brief-feeds'
+  maxProjects: number({ label: 'Projects', unit: 'count', default: 3 }),
+  attachmentMb: number({ label: 'Attachment size', unit: 'megabytes', integer: false, default: 10 }),
+  titleLength: range({ label: 'Task title length', unit: 'characters', default: { min: 1, max: 200 } }),
+  coverImage: size({ label: 'Project cover size', default: { width: 1200, height: 400 } }),
+  guestAccess: toggle({ label: 'Guests', default: false }),
+  defaultView: choice({
+    label: 'Default view',
+    options: [{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }, { value: 'calendar', label: 'Calendar' }],
+    default: 'list'
   }),
-  efforts: choices({ label: 'Efforts', options: ['low', 'medium', 'high'], default: ['low', 'medium'], minimum: 0 }),
-  framing: text({ label: 'Framing', default: '', maxLength: 4000, multiline: true }),
-  model: pick({ label: 'Model', catalog: 'models', default: 'openai/gpt-oss-120b' })
+  notifyBy: choices({ label: 'Notify by', options: ['email', 'push', 'digest'], default: ['email'], minimum: 0 }),
+  welcome: text({ label: 'Welcome message', default: '', maxLength: 2000, multiline: true }),
+  suggestionModel: pick({ label: 'Suggestion model', catalog: 'models', default: 'small' })
 }
 ```
 
 `choice` and `choices` take options as plain strings, or as `{ value, label }`
 when the stored value and the name a person reads differ. Their types are
-narrowed to the options, so `scheduledCollection` reads as
-`'off' | 'brief-feeds'`.
+narrowed to the options, so `defaultView` reads as
+`'list' | 'board' | 'calendar'`.
 
 ## How values are checked
 
@@ -56,8 +56,8 @@ the field's own words:
 
 - **`number`** is a whole number unless `integer: false`, more than 0 unless a
   `min` says otherwise, and within `min` and `max`, which are inclusive. A
-  unit's own bounds apply when the field states none. *"Check interval must be
-  a whole number."*, *"Budget limit may not be more than $50."*
+  unit's own bounds apply when the field states none. *"Projects must be a
+  whole number."*, *"Attachment size may not be more than 2,048 MB."*
 - **`range`** has a shortest and a longest, each checked like a number, and the
   shortest may not be longer than the longest.
 - **`size`** has a whole-number width and height, each more than 0.
@@ -65,8 +65,8 @@ the field's own words:
   options, each once, and at least `minimum` of them (1 unless you say 0).
 - **`text`** may be at most `maxLength` characters, and may not be empty when
   `optional: false`.
-- **`pick`** must name an entry of its catalog. A preset may not newly pick a
-  Retired entry; see [Catalogs](./catalogs.md).
+- **`pick`** must name an entry of its catalog. A setting or a preset may not
+  newly pick a Retired entry; see [Catalogs](./catalogs.md).
 
 `fieldSchema(key, field, unitOf)` returns the zod schema a field is checked
 with, for code that needs the same check outside a save.
@@ -101,25 +101,25 @@ Declare a unit your app measures in and pass it to `createTunables`:
 import { createTunables, number, type Unit } from 'tunables'
 
 export const units = {
-  'dollars-per-million': {
-    label: 'dollars per million tokens',
-    format: (value: number) => `$${value} per million tokens`
+  cents: {
+    label: 'cents',
+    format: (value: number) => `${value}¢`
   }
 } satisfies Record<string, Unit>
 
-const inputRate = number({ label: 'Input rate', unit: 'dollars-per-million', integer: false, default: 0.15 })
+const centsPerSuggestion = number({ label: 'Cost a suggestion', unit: 'cents', integer: false, default: 1 })
 
 const tunables = createTunables({ store, groups, units })
 ```
 
 A unit takes a `label`, and optionally `min`, `max`, `integer` and a `format`
-function. A field measured in a unit nobody declared fails at start: *"run.inputRate
-is measured in "dollars-per-million", which is not a unit. Add it to `units`."*
+function. A field measured in a unit nobody declared fails at start: *"models.centsPerSuggestion
+is measured in "cents", which is not a unit. Add it to `units`."*
 
 ## How values read
 
 `formatValue(field, value, unitOf)` gives the reading the screens, All
-settings, `tunables get` and the entry's `display` use: `$25`, `40–360
-characters`, `400 × 225 pixels`, `On`, `Feeds Briefs read`. In the browser,
+settings, `tunables get` and the entry's `display` use: `$25`, `1–200
+characters`, `1200 × 400 pixels`, `On`, `Calendar`. In the browser,
 `displayValue` from `tunables/client` reads a value from a field's description
 the same way, for a value still being edited.

@@ -2,7 +2,7 @@
 title: Theming
 description: The screens bring no colors, fonts or CSS of their own; they take your Nuxt UI theme.
 group: Screens
-order: 15
+order: 18
 ---
 
 # Theming

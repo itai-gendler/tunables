@@ -22,15 +22,18 @@ pnpm verify             # typecheck, build, size budgets, unit tests, repo check
 pnpm test:integration   # the engine on Postgres, both drivers, and the CLI
 ```
 
-The playground embeds every screen: `pnpm --dir playground dev`, then open
-`http://localhost:3100`.
+The playground runs Tasklane, the example app in `examples/tasklane`, with every
+screen: `pnpm --dir playground dev`, then open the address it prints
+(`http://localhost:3000` unless that port is taken).
 
 ## Making a change
 
 1. Write or update the tests first: the engine suite in `test/suites/engine.ts`
    runs against every store, and the client suite in `test/server.test.ts`
    against every adapter.
-2. Keep the fixture faithful to news: `node dist/cli.js --cwd fixture check`.
+2. Keep the examples working: Tasklane in `examples/` is what the docs, the
+   playground and the scoped tests use. Keep the news fixture faithful to
+   news: `node dist/cli.js --cwd test/fixtures/news check`.
 3. For a screen, run `pnpm --dir playground screenshots` and commit the new
    baselines with the change.
 4. Add a line under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md) saying what

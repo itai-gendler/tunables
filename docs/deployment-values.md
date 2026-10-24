@@ -2,7 +2,7 @@
 title: Deployment values
 description: Values a deployment sets in its environment and nobody tunes while the app runs, declared once and listed in .env.example.
 group: Concepts
-order: 9
+order: 11
 ---
 
 # Deployment values

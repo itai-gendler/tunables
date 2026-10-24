@@ -2,7 +2,7 @@
 title: Testing
 description: Your app's tunables in memory for its own tests, with values set where a test needs them, and how to test rules, guards and confirmations.
 group: Integrate
-order: 12
+order: 15
 ---
 
 # Testing
@@ -19,12 +19,14 @@ and returns tunables already synced, so every group reads its defaults.
 ```ts
 import { describe, expect, it } from 'vitest'
 import { testTunables } from 'tunables/testing'
-import { catalogs, effects, groups, presets, units } from '../server/settings'
+import { catalogs, effects, groups, presets, scopes } from '../server/settings'
 
-describe('reader limits', () => {
-  it('starts every reader at twelve Briefs', async () => {
-    const tunables = await testTunables({ groups, presets, catalogs, units, effects })
-    expect((await tunables.get('readers')).briefsPerReader).toBe(12)
+export const definitions = { groups, presets, catalogs, effects, scopes }
+
+describe('limits', () => {
+  it('lets a new workspace open three projects', async () => {
+    const tunables = await testTunables(definitions)
+    expect((await tunables.get('limits', { scope: { workspace: 'new' } })).maxProjects).toBe(3)
   })
 })
 ```
@@ -38,15 +40,17 @@ A test often needs to start somewhere the checks would not let a person go in
 one step. `setForTest` stores values for a test as they are, past rules,
 guards, `within` and confirmations, and records them as a revision by `test`.
 Each field's own check still applies: a key the group does not declare, or a
-value that fails its field's check, makes `setForTest` throw.
+value that fails its field's check, makes `setForTest` throw. It sets system
+values; put a workspace's or a person's own values in place with `save` and
+its `scope`, or assign a plan with `presets(id).assign`.
 
 ```ts
 import { setForTest, testTunables } from 'tunables/testing'
 
-const tunables = await testTunables({ groups })
-await setForTest(tunables, { readers: { briefsPerReader: 1 } })
+const tunables = await testTunables(definitions)
+await setForTest(tunables, { limits: { maxProjects: 1 } })
 
-await expect(createBrief(reader, tunables)).rejects.toThrow('A reader keeps at most 1 Briefs.')
+await expect(createProject(workspace, tunables)).rejects.toThrow('A workspace may have 1 open projects.')
 ```
 
 ## Testing your checks
@@ -55,21 +59,29 @@ Test each rule, guard and confirmation through `save`, the way a person meets
 it: refused with its problem, or asked, then saved once confirmed.
 
 ```ts
-import { feedsWithinBounds } from '../server/guards'
+import { projectsWithinLimit } from '../server/guards'
 
-it('refuses to lower the article bound below a Feed', async () => {
-  const tunables = await testTunables({ groups, guards: { collection: [feedsWithinBounds] } })
-  const outcome = await tunables.save('collection', { maxArticlesPerRetrieval: 200 })
+it('refuses to lower the task limit below a project', async () => {
+  const tunables = await testTunables({ ...definitions, guards: { limits: [projectsWithinLimit] } })
+  const outcome = await tunables.save('limits', { maxTasksPerProject: 100 })
   expect(outcome.saved).toBe(false)
-  expect(outcome.problems[0]?.message).toBe('Feed "Ars Technica" reads 300 articles, above the Most articles per retrieval of 200.')
+  expect(outcome.problems[0]?.message).toBe('Project "Launch" has 140 open tasks, above the 100 allowed.')
 })
 
-it('asks before a change that redoes Screening', async () => {
-  const tunables = await testTunables({ groups })
-  const asked = await tunables.save('run', { screeningReasonWords: 20 })
-  expect(asked.confirm).toMatch(/redoes every saved Screening judgment/)
-  const saved = await tunables.save('run', { screeningReasonWords: 20 }, { confirmed: true })
+it('asks before turning on Guests', async () => {
+  const tunables = await testTunables(definitions)
+  const acme = { workspace: 'acme' }
+  const asked = await tunables.save('workspace', { guestAccess: true }, { scope: acme })
+  expect(asked.confirm).toMatch(/Guests will see every task/)
+  const saved = await tunables.save('workspace', { guestAccess: true }, { scope: acme, confirmed: true })
   expect(saved.saved).toBe(true)
+})
+
+it('keeps a workspace within its plan', async () => {
+  const tunables = await testTunables(definitions)
+  await tunables.presets('plans').assign('acme', 'plan', 'pro')
+  const outcome = await tunables.save('limits', { maxProjects: 60 }, { scope: { workspace: 'acme' } })
+  expect(outcome.problems[0]?.message).toBe('Projects may be at most 50 for Workspace acme, the value it inherits.')
 })
 ```
 
@@ -88,7 +100,7 @@ const client = fetchClient({
     ?? new Response('Not found', { status: 404 })
 })
 
-const saved = await client.save('readers', { values: { briefsPerReader: 6 }, reason: 'Test' })
+const saved = await client.save('limits', { values: { maxProjects: 6 }, reason: 'Test' })
 expect(saved.revision?.actor).toBe('Ada')
 ```
 

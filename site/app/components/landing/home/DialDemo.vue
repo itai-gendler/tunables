@@ -1,13 +1,10 @@
 <script setup lang="ts">
 /**
- * The hero's panel: one real setting, the news fixture's Story limit, and the
- * checks a save of it runs, worked out in the browser as tunables works them out
- * on the server.
- *
- * - Above Sections per edition × Stories per section, the group's own `rules`
- *   refuse it.
- * - Below a Run Config's Story ceiling, the preset set's `within` refuses it,
- *   naming that Run Config.
+ * The hero's panel: one real setting, Projects on Tasklane's Pro plan, and the
+ * check a save of it runs, worked out in the browser as tunables works it out
+ * on the server: below what a workspace on Pro keeps as its own, the save is
+ * refused, naming that workspace, because the workspace's override may be at
+ * most what it inherits.
  *
  * The words are the library's own; see `homeContent.ts`. Nothing is sent
  * anywhere. The dial is drawn from the value and is decorative: the slider is
@@ -20,10 +17,9 @@ const helpId = useId()
 
 const problems = computed(() => {
   const found: string[] = []
-  if (value.value > demo.ceiling) found.push(demo.ceilingProblem)
-  for (const preset of demo.presets) {
-    if (preset.ceiling > value.value) {
-      found.push(`Run Config "${preset.label}": its Story ceiling, ${preset.ceiling}, is above the Story limit of ${value.value}.`)
+  for (const override of demo.overrides) {
+    if (override.value > value.value) {
+      found.push(`${override.label} keeps ${demo.field} at ${override.value}, above ${value.value}.`)
     }
   }
   return found
@@ -41,7 +37,7 @@ const ticks = Array.from({ length: 30 }, (_, index) => {
     y1: 50 + Math.sin(turn) * (long ? 36 : 39),
     x2: 50 + Math.cos(turn) * 43,
     y2: 50 + Math.sin(turn) * 43,
-    lit: index + 1 <= value.value
+    lit: index / 29 <= (value.value - demo.min) / (demo.max - demo.min)
   }
 })
 </script>
@@ -54,7 +50,7 @@ const ticks = Array.from({ length: 30 }, (_, index) => {
           {{ demo.group }}
         </p>
         <p class="font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
-          news fixture
+          Tasklane example
         </p>
       </div>
 
@@ -135,14 +131,14 @@ const ticks = Array.from({ length: 30 }, (_, index) => {
 
         <ul class="mt-5 divide-y divide-default rounded-lg border border-default text-sm">
           <li
-            v-for="preset in demo.presets"
-            :key="preset.label"
+            v-for="override in demo.overrides"
+            :key="override.label"
             class="flex items-center justify-between gap-3 px-3 py-2"
           >
-            <span class="text-default">Run Config “{{ preset.label }}”</span>
-            <span class="flex items-center gap-1.5 font-mono text-xs" :class="preset.ceiling > value ? 'text-error' : 'text-muted'">
-              <UIcon :name="preset.ceiling > value ? 'i-lucide-circle-alert' : 'i-lucide-circle-check'" class="size-3.5" aria-hidden="true" />
-              Story ceiling {{ preset.ceiling }}
+            <span class="text-default">Workspace {{ override.label }}</span>
+            <span class="flex items-center gap-1.5 font-mono text-xs" :class="override.value > value ? 'text-error' : 'text-muted'">
+              <UIcon :name="override.value > value ? 'i-lucide-circle-alert' : 'i-lucide-circle-check'" class="size-3.5" aria-hidden="true" />
+              keeps {{ override.value }}
             </span>
           </li>
         </ul>
@@ -163,7 +159,7 @@ const ticks = Array.from({ length: 30 }, (_, index) => {
               {{ changed ? 'Checks pass' : 'Saved' }}
             </p>
             <p class="mt-1 leading-5 text-muted">
-              {{ changed ? 'Saving records a revision: who, when, why, and the value before and after.' : 'At its default. Turn it down past a Run Config to see the save refused.' }}
+              {{ changed ? 'Saving records a revision: who, when, why, and the value before and after.' : 'At its default. Turn it down past what a workspace keeps to see the save refused.' }}
             </p>
           </template>
         </div>

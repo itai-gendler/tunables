@@ -2,7 +2,7 @@
 title: Storage
 description: Postgres through your own client, the four tables and how to create them, joining your transactions, and the storage contract behind it.
 group: Integrate
-order: 10
+order: 12
 ---
 
 # Storage
@@ -10,6 +10,13 @@ order: 10
 tunables stores its values in your own Postgres, through the client your app
 already has. It never opens a connection of its own: you hand it a client, and
 it runs its statements through it, inside your transactions when you ask.
+
+| You have | Use |
+| --- | --- |
+| Postgres, through node-postgres or postgres.js | `postgresStore` from `tunables/postgres`, below |
+| Drizzle | the same store, over the driver beneath Drizzle; `tunables/drizzle` only adds the tables to your drizzle-kit migrations |
+| Tests, demos, a first try | [`memoryStore`](#the-memory-store) |
+| Another database | a store of your own, written to [the storage contract](#the-storage-contract) |
 
 ## Postgres
 
@@ -40,7 +47,10 @@ export const tunables = createTunables({
 | node-postgres: a `Pool`, a `Client` or a pool client | `fromPg(pool)` |
 | postgres.js: an `sql` instance | `fromPostgresJs(sql)` |
 | Drizzle over either | the driver Drizzle was built on, through the same function |
-| anything else | an object with `query(text, params)` that resolves rows, and `transaction(work)` |
+| any other Postgres client | an object with `query(text, params)` that resolves rows, and `transaction(work)` |
+
+`asExecutor(host)` turns any of these, or an object with `query`, into what
+`within` runs statements through; you rarely call it yourself.
 
 ```ts
 import postgres from 'postgres'
@@ -58,8 +68,9 @@ tunables at start never touches the database.
 tunables keeps four tables in its schema. Create them one of three ways, in
 your migrate or deploy step, never at boot:
 
-- **`migrate`** creates the schema and tables if they are missing. It is safe
-  to run on every deploy.
+- **`migrate`** creates the schema and tables if they are missing, and brings
+  tables an earlier version created up to date, such as adding the `scope`
+  column to `tunables_groups`. It is safe to run on every deploy.
 
   ```ts
   import { fromPg, migrate } from 'tunables/postgres'
@@ -80,8 +91,9 @@ migrations.
 
 ### Drizzle
 
-An app that generates its migrations with drizzle-kit can include tunables'
-tables in its own schema file, so its migrations create them:
+Drizzle is optional: tunables never queries through it. An app that generates
+its migrations with drizzle-kit can include tunables' tables in its own schema
+file, so its migrations create them:
 
 ```ts [db/schema.ts]
 import { tunablesTables } from 'tunables/drizzle'
@@ -101,7 +113,7 @@ migrations only: read settings with `tunables.get`, never with a query.
 
 | Table | Holds |
 | --- | --- |
-| `tunables_groups` | One row per group: its values as JSON, and who changed it last and when. |
+| `tunables_groups` | A group's values as JSON, and who changed them last and when, keyed by `(id, scope)`. The system row has scope `''` and holds every field; a [scope](./scopes.md)'s row, such as `workspace=acme`, holds only the fields it overrides. |
 | `tunables_revisions` | Every revision, appended and never updated, indexed by target. |
 | `tunables_records` | Presets and catalog entries, as JSON by collection and id. |
 | `tunables_assignments` | Which preset each subject is assigned, by preset set and slot. |
@@ -124,8 +136,8 @@ const client = await pool.connect()
 try {
   await client.query('begin')
   const scoped = tunables.within(client)
-  await scoped.save('readers', { briefsPerReader: 9 }, { actor, reason: 'Plan upgrade' })
-  await client.query('insert into audit_log (message) values ($1)', ['Raised the reader limit'])
+  await scoped.save('limits', { maxProjects: 5 }, { actor, reason: 'More room on the free tier' })
+  await client.query('insert into audit_log (message) values ($1)', ['Raised the project limit'])
   await client.query('commit')
   scoped.committed()
 } catch (error) {
@@ -147,17 +159,17 @@ it.
 
 ### hold
 
-A write in your app that depends on a setting, such as saving a Feed that must
-stay under *Most articles per retrieval*, should hold the settings while it
-reads them and writes:
+A write in your app that depends on a setting, such as adding a task to a
+project that must stay under *Tasks per project*, should hold the settings
+while it reads them and writes:
 
 ```ts
 await sql.begin(async (tx) => {
   const scoped = tunables.within(tx)
   await scoped.hold()
-  const { maxArticlesPerRetrieval } = await scoped.get('collection')
-  if (input.maxArticles > maxArticlesPerRetrieval) throw new Error('Too many articles for one retrieval.')
-  await tx`update feeds set max_articles = ${input.maxArticles} where id = ${input.id}`
+  const { maxTasksPerProject } = await scoped.get('limits', { scope: { workspace: project.workspace } })
+  if (project.openTasks >= maxTasksPerProject) throw new Error('This project is full.')
+  await tx`insert into tasks (project_id, title) values (${project.id}, ${input.title})`
 })
 ```
 
@@ -177,9 +189,10 @@ so they never wait on each other.
 
 Postgres is one implementation of a small contract, `TunablesStore`. Anything
 that can keep four kinds of thing, in a transaction, behind a lock, can store
-tunables:
+tunables, so another database needs only a store of its own:
 
-- a group's values, one row per group;
+- a group's values, one row per group and scope: the system's at scope `''`,
+  and one for each scope that overrides something;
 - revisions, appended and never changed, with increasing ids;
 - records, the presets and catalog entries, as JSON by collection and id;
 - assignments of presets to subjects.
@@ -187,8 +200,10 @@ tunables:
 ```ts
 interface StoreSession {
   lock(mode: 'shared' | 'exclusive'): Promise<void>
-  readGroups(ids?: readonly string[]): Promise<StoredGroup[]>
-  writeGroup(group: StoredGroup): Promise<void>
+  readGroups(ids?: readonly string[], scope?: string): Promise<StoredGroup[]> // one scope, the system's ('') by default
+  readScopes(id: string): Promise<StoredGroup[]> // every scoped row of a group, in key order
+  writeGroup(group: StoredGroup): Promise<void> // { id, scope, values, updatedAt, updatedBy }
+  deleteGroup(id: string, scope: string): Promise<void> // a scoped row that overrides nothing any more
   appendRevision(revision: NewRevision): Promise<Revision>
   listRevisions(target: RevisionTarget, query: RevisionQuery): Promise<Revision[]>
   getRevision(id: string): Promise<Revision | undefined>
@@ -208,7 +223,10 @@ interface TunablesStore extends StoreSession {
 
 `listRevisions` returns newest first, at most `limit`, and only ids below
 `before` when it is given. A store without `within` cannot join a host
-transaction, and `tunables.within` says so.
+transaction, and `tunables.within` says so. The full contract, including what
+each method must guarantee, is
+[`spec/storage.md`](https://github.com/itai-gendler/tunables/blob/main/spec/storage.md);
+a store passes when it runs the repository's engine suite unchanged.
 
 ### The memory store
 

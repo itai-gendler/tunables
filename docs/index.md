@@ -53,6 +53,9 @@ Every tunable is a knob on a panel:
 4. **Change it safely.** From the screen, the API or the terminal, every change
    goes through the same checks and becomes a revision. See
    [History and restore](./history-and-restore.md).
+5. **Let each workspace and person set their own, within the plan.** A field
+   says where it may be overridden and how far; a value is read through the
+   system, the plan, the workspace and the person. See [Scopes](./scopes.md).
 
 ## Principles
 
@@ -77,14 +80,19 @@ and the [skills](./skills.md) check the rest.
 - **Presets are assigned by reference.** A named configuration, such as a
   plan or a cadence, has one default per slot; subjects follow the default or
   are assigned one by its key, never given a copy. See [Presets](./presets.md).
+- **Layers are declared, never guessed.** Nothing is overridable unless its
+  field says where, and an override is bounded by what it inherits. Every
+  screen says where a value comes from, and a broader change that would leave
+  an override outside its bound is refused, naming it. Layers live only in the
+  database, never between it and the environment. See [Scopes](./scopes.md).
 - **Catalog entries in use cannot be retired.** A catalog holds allowed
   choices, such as permitted models; an entry something still picks stays
   available. See [Catalogs](./catalogs.md).
 - **Boot never needs the database.** Creating tunables checks your definitions
   and touches nothing else.
 - **Access is decided by your app.** tunables has no users or roles. Your app
-  says who is asking and whether they may, on every request. See
-  [Server and access](./server.md).
+  says who is asking and whether they may, on every request, down to the
+  workspace or person a request is about. See [Who can do what](./access.md).
 - **The screens look like your app.** They are built on Nuxt UI and bring no
   colors or fonts of their own. See [Theming](./theming.md).
 - **Explanations come from the Product Model.** With a
@@ -110,8 +118,10 @@ and the [skills](./skills.md) check the rest.
 | `tunables/pdd` | Reading and checking a pdd-kit Product Model |
 | `tunables/testing` | In-memory tunables for your own tests |
 
-The [API reference](./api.md) lists each export. The
-[news example](./news-example.md) walks through a complete app's settings.
+The [API reference](./api.md) lists each export. [What it is for](./patterns.md)
+names the kinds of value tunables keeps, and
+[Tasklane](./tasklane-example.md) walks through a complete example app's
+settings.
 
 ## Next
 

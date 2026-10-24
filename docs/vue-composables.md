@@ -2,7 +2,7 @@
 title: Vue composables
 description: Headless composables for building tunables' screens in any Vue app, on any design system.
 group: Screens
-order: 14
+order: 17
 ---
 
 # Vue composables
@@ -40,6 +40,10 @@ adds a CSRF token) and `credentials` (`same-origin` by default). `orpcClient`
 does the same over an oRPC client; see
 [The Nuxt layer](./nuxt-layer.md#another-client).
 
+The client's `group(id, scope?)`, `save(id, { values, scope? })` and
+`reset(id, { keys?, scope? })` take a scope path too, for code that calls it
+directly.
+
 A request the server refused or could not answer throws a
 `TunablesClientError` with its `status`. A refused *change* does not throw: it
 comes back with its `problems`.
@@ -52,7 +56,7 @@ One group's form.
 <script setup lang="ts">
 import { useGroupForm, useUnloadGuard } from 'tunables/vue'
 
-const form = useGroupForm('readers')
+const form = useGroupForm('limits')
 useUnloadGuard(form.dirty)
 </script>
 
@@ -93,13 +97,38 @@ useUnloadGuard(form.dirty)
 `save` sends only the fields that changed, and resolves to whether they were
 saved.
 
+### At a scope
+
+Pass a [scope](./scopes.md) to edit that scope's own values, such as a
+workspace's owner on their workspace's page:
+
+```ts
+const form = useGroupForm('limits', { scope: { workspace: 'acme' } })
+```
+
+`scope` may be a ref; the form reloads when it changes. The entry then carries
+`layers`, and the form adds:
+
+| Returns | What it is |
+| --- | --- |
+| `scope` | The path, or undefined for the whole system. |
+| `editable` | The fields this scope may set. Show only these. |
+| `inheriting` | The fields that will use the inherited value again on save. |
+| `useInherited(key)` | Stop setting a field here: its draft goes back to what it inherits, and the save sends `null`. |
+| `setHere(key)` | Set a field here again, after `useInherited`. Call it when the person edits the field. |
+
+`entry.value.layers[key]` says, per field, what it inherits (`inherited`,
+`inheritedDisplay`), from where (`fromLabel`, such as *Pro plan*), whether
+this scope sets its own (`overridden`), and its bound (`rule`: `free`,
+`at-most` or `at-least`).
+
 ## The others
 
 | Composable | Gives |
 | --- | --- |
 | `useTunablesDescription()` | `description` of every group, preset set and catalog, fetched once per client; `error`, `pending`, `refresh()`. |
 | `useOverview()` | `entries` of every group, for All settings; `loading`, `error`, `refresh()`. |
-| `useHistory(target, { pageSize })` | `revisions` newest first, `more`, `loadMore()`, `refresh()`, and `restore(revision, { reason, confirmed })`. |
+| `useHistory(target, { pageSize })` | `revisions` newest first, `more`, `loadMore()`, `refresh()`, and `restore(revision, { reason, confirmed })`. For a scope's history, the target's `id` is the scope key: `{ kind: 'group', name: 'limits', id: 'workspace=acme' }`. |
 | `usePresets(set)` | `presets` with how many are assigned each; `create`, `update`, `remove`, `makeDefault`, `assign`, `assignments`. |
 | `useCatalog(catalog)` | `entries` with what uses each, `available`; `add`, `edit`, `retire`, `reinstate`. |
 | `useUnloadGuard(dirty)` | Asks before the page unloads while `dirty` is true. Add your router's own leave guard beside it. |

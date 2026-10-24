@@ -2,7 +2,7 @@
 title: Settings and groups
 description: Declare each setting once, in a group edited beside what it affects, and read it with types.
 group: Concepts
-order: 3
+order: 4
 ---
 
 # Settings and groups
@@ -10,7 +10,8 @@ order: 3
 A **setting** is a value someone tunes while the app runs: a limit, an
 interval, a budget, a switch. A **group** is a set of settings edited together,
 on one form, beside what they affect. Every setting belongs to exactly one
-group, and a group is stored as one row.
+group. A group's values are stored as one row, with one more for each
+workspace or person that [sets its own](./scopes.md).
 
 ## Declaring a group
 
@@ -18,39 +19,38 @@ group, and a group is stored as one row.
 import { defineEffects, defineGroup, number, range, toggle } from 'tunables'
 
 export const effects = defineEffects({
-  readers: { label: 'What readers get', icon: 'i-lucide-users' },
-  cost: { label: 'Model cost', warn: true, icon: 'i-lucide-coins' }
+  members: { label: 'What everyone in the workspace sees', icon: 'i-lucide-users' },
+  cost: { label: 'AI cost', warn: true, icon: 'i-lucide-coins' }
 })
 
-export const run = defineGroup({
-  id: 'run',
-  title: 'Run Settings',
-  description: 'The limits every Run stays within, and the lengths of what it writes.',
-  place: { label: 'Run Configs › Settings', href: '/admin/run-configs/settings' },
+export const limits = defineGroup({
+  id: 'limits',
+  title: 'Limits',
+  description: 'How much a workspace may hold and use.',
+  place: { label: 'Admin › Limits', href: '/admin/limits' },
   fields: {
-    budgetLimitUsd: number({
-      label: 'Budget limit',
-      help: 'The most any Run may spend.',
-      unit: 'dollars',
-      integer: false,
-      default: 25,
-      section: 'Limits',
-      affects: ['cost']
+    maxProjects: number({
+      label: 'Projects',
+      help: 'The most projects a workspace may have open at once.',
+      unit: 'count',
+      default: 3,
+      section: 'What a workspace holds',
+      affects: ['members']
     }),
-    storySummaryLength: range({
-      label: 'Story summary length',
-      help: 'How long each Story\'s account of what happened is.',
+    titleLength: range({
+      label: 'Task title length',
+      help: 'How short and how long a task\'s title may be.',
       unit: 'characters',
-      default: { min: 40, max: 360 },
-      section: 'Policy',
-      affects: ['readers']
+      default: { min: 1, max: 200 },
+      section: 'What a workspace holds',
+      affects: ['members']
     }),
-    scheduledEditions: toggle({
-      label: 'Scheduled editions',
-      help: 'Whether the scheduler writes each Brief\'s Edition on its own.',
+    aiSuggestions: toggle({
+      label: 'AI suggestions',
+      help: 'Whether people may ask for suggested tasks.',
       default: true,
-      section: 'Scheduled Editions',
-      affects: ['readers', 'cost']
+      section: 'AI',
+      affects: ['members', 'cost']
     })
   }
 })
@@ -80,6 +80,7 @@ Every kind of field takes the same information about itself:
 | `fact` | The Product Model fact the field is. Its explanation comes from there. |
 | `section` | The sub-heading it is listed under within its group. |
 | `affects` | What changing it changes, by effect id. |
+| `override` | Where a workspace or a person may set its own value, and how far. See [Scopes](./scopes.md). |
 
 Each kind adds its own options, such as a `number`'s `unit` and bounds; see
 [Kinds and units](./kinds-and-units.md). `createTunables` refuses a definition
@@ -104,34 +105,37 @@ field appears. Fields without one are listed first, under General.
 `createTunables` takes your groups and returns typed reads:
 
 ```ts
-const tunables = createTunables({ store, groups: [run], effects })
+const tunables = createTunables({ store, groups: [limits], effects })
 
-const { budgetLimitUsd, storySummaryLength } = await tunables.get('run')
-// budgetLimitUsd: number
-// storySummaryLength: { min: number, max: number }
+const { maxProjects, titleLength } = await tunables.get('limits')
+// maxProjects: number
+// titleLength: { min: number, max: number }
 ```
 
 - **Read at the point of use, every time.** A read is one query. A value
   captured at boot needs a restart to change.
 - **Never write a fallback.** `get` returns every field or throws: a
-  `?? 25` beside it would be a second home for the default.
+  `?? 3` beside it would be a second home for the default.
 - `get` throws `TunablesMissing` when the group, or one of its fields, has not
   been stored yet: run [`tunables sync`](./cli-values.md#sync).
 - It throws `TunablesInvalid` when a stored value no longer passes its check,
   for example after its bounds were tightened.
 - A long-running worker can pass `{ lastGood: true }`: when a read fails, it
   returns the last values this process read or saved, if it has any.
+- With `scopes`, pass `{ scope: { workspace: 'acme', user: 'dana' } }` to
+  read the values as that workspace and person get them, through their plan
+  and their own overrides. See [Scopes](./scopes.md#reading-at-a-path).
 
 To react to changes made in this process, subscribe:
 
 ```ts
-const stop = tunables.onChange('run', (values) => {
-  scheduler.reschedule(values.scheduledEditions)
+const stop = tunables.onChange('limits', (values) => {
+  suggestions.setEnabled(values.aiSuggestions)
 })
 ```
 
-The listener runs after the change commits. Other processes learn of it on
-their next read.
+The listener runs after a change to the group's system values commits. Other
+processes learn of it on their next read.
 
 ### The entry
 
@@ -142,9 +146,9 @@ as it reads to a person (`display`), `notes` from your
 and when.
 
 ```ts
-const entry = await tunables.entry('run')
-entry.display.values.budgetLimitUsd // "$25"
-entry.changed // ["budgetLimitUsd"] once it differs from its default
+const entry = await tunables.entry('limits')
+entry.display.values.titleLength // "1–200 characters"
+entry.changed // ["maxProjects"] once it differs from its default
 ```
 
 ## Saving values
@@ -153,9 +157,9 @@ A save takes the fields that change, merges them over the stored values, and
 checks the whole group before anything is written:
 
 ```ts
-const outcome = await tunables.save('run', { budgetLimitUsd: 40 }, {
+const outcome = await tunables.save('limits', { maxProjects: 5 }, {
   actor: { id: user.id, name: user.name },
-  reason: 'Launch week'
+  reason: 'More room on the free tier'
 })
 
 if (!outcome.saved) {
@@ -182,12 +186,13 @@ The change options are the same everywhere:
 | `reason` | Why, kept on the revision. |
 | `confirmed` | The change was sent again after it asked to be confirmed. |
 | `host` | Your open transaction or request context, handed to guards and notes. |
+| `scope` | Where the change is made, such as `{ workspace: 'acme' }`. Absent: the whole system. See [Scopes](./scopes.md#saving-at-a-scope). |
 
 `reset` puts fields back at their defaults through the same checks:
 
 ```ts
-await tunables.reset('run', ['budgetLimitUsd'], { actor: 'Ada' })
-await tunables.reset('run') // every field
+await tunables.reset('limits', ['maxProjects'], { actor: 'Ada' })
+await tunables.reset('limits') // every field
 ```
 
 ## Explanations
@@ -200,13 +205,13 @@ Product Model, write `fact` instead of `help`, run
 [`tunables explain`](./cli-check.md#explain) and pass the module it writes to
 `createTunables` as `explanations`. `tunables check` reports a field that
 carries `help` for a fact the model describes, and a `fact` on a group that
-names no `entity`. The
-[news example](./news-example.md) does exactly this.
+names no `entity`. See [Check and generate](./cli-check.md#explain).
 
 ## Where a group goes
 
 Put settings that bound one another in one group, because a group's `rules` see
 only its own values. Otherwise group by what the settings govern and who tunes
-them, and give each group a `place` beside what it affects: collection
-settings on the Feeds screens, reader limits on the Readers screens. All
-settings lists every group in one place, read-only, with a link to each.
+them, and give each group a `place` beside what it affects: limits on the
+admin's Limits page, how a workspace works on the workspace's own settings
+page. All settings lists every group in one place, read-only, with a link to
+each.

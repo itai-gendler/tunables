@@ -34,11 +34,16 @@ before the code it governs, and record options turned down in
 - `src/cli.ts`, `src/commands/`, `src/core/` — the CLI and its installer,
   copied from pdd-kit ([decision 0008](decisions/0008-the-repository-follows-pdd-kit.md)).
 - `skills/` — the agent skills `tunables install` puts in place.
-- `fixture/` — news, the app tunables was extracted from, as tunables would
-  hold it, with news's own Product Model entities. Tests, the playground and
-  the CLI checks use it; it is the verification that tunables fits news.
-- `playground/` — a Nuxt host app that embeds the screens over oRPC, the way
-  news does. Private workspace member.
+- `examples/` — Tasklane, the example app the docs use: a todo app with
+  workspaces and people (`examples/tasklane`: groups, plans as a layer, a
+  catalog, scopes, its access policy and CLI config), served by Express and by
+  Hono (`examples/express`, `examples/hono`). Tested in CI.
+- `test/fixtures/news/` — news, the app tunables was extracted from, as
+  tunables would hold it, with news's own Product Model entities. Only a test
+  fixture: the verification that tunables fits news, never the example the
+  docs show.
+- `playground/` — Tasklane as a Nuxt host app that embeds the screens over
+  oRPC, with staff, a workspace owner and a member. Private workspace member.
 - `site/` — tunables.dev, a static Nuxt Content site rendering `docs/` and
   `CHANGELOG.md`. Private workspace member with its own `AGENTS.md`.
 
@@ -68,7 +73,9 @@ a cited rule is not in the Product Model.
 - **Every adapter passes the same suite.** A store runs `test/suites/engine.ts`
   unchanged; every client runs the client suite in `test/server.test.ts`.
 - **The fixture stays faithful to news.** Its keys, facts and defaults are
-  news's own; `tunables check --cwd fixture` holds them to news's Product Model.
+  news's own; `node dist/cli.js --cwd test/fixtures/news check` holds them to
+  news's Product Model. Examples in docs, the site and the skills use Tasklane,
+  not news.
 
 ## Local setup
 
@@ -77,8 +84,8 @@ a cited rule is not in the Product Model.
 - `pnpm test` runs the unit suites (it builds `dist/` first);
   `pnpm test:integration` runs the engine suite on Postgres through both
   drivers, the lock and transaction checks and the CLI against the database.
-- The playground: `pnpm --dir playground dev` serves it on
-  `http://localhost:3100` with in-memory storage, or on Postgres when
+- The playground: `pnpm --dir playground dev` serves Tasklane on
+  `http://localhost:3000` with in-memory storage, or on Postgres when
   `DATABASE_URL` is set. `pnpm --dir playground screenshots` photographs every
   screen in both themes.
 

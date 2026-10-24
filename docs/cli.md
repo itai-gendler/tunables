@@ -2,7 +2,7 @@
 title: The CLI
 description: The tunables command, tunables.config.ts, and which commands need a database.
 group: CLI
-order: 16
+order: 19
 ---
 
 # The CLI
@@ -24,10 +24,10 @@ npx tunables --help
 | [`explain`](./cli-check.md#explain) | Write field explanations from the Product Model | No |
 | [`model draft`](./cli-check.md#model-draft) | Draft the facts the Product Model lacks | No |
 | [`sync`](./cli-values.md#sync) | Seed new settings with their defaults | Yes |
-| [`get`](./cli-values.md#get) | Print stored values | Yes |
-| [`set`](./cli-values.md#set) | Change values, checked and recorded | Yes |
-| [`history`](./cli-values.md#history) | Show a group's revisions | Yes |
-| [`restore`](./cli-values.md#restore) | Restore a group to an earlier revision | Yes |
+| [`get`](./cli-values.md#get) | Print stored values, for the system or a scope | Yes, or the app's API |
+| [`set`](./cli-values.md#set) | Change values, checked and recorded | Yes, or the app's API |
+| [`history`](./cli-values.md#history) | Show a group's revisions | Yes, or the app's API |
+| [`restore`](./cli-values.md#restore) | Restore a group to an earlier revision | Yes, or the app's API |
 | [`install`](./cli-skills.md#install) | Install the agent skills | No |
 | [`update`](./cli-skills.md#update) | Update installed skills | No |
 
@@ -39,6 +39,12 @@ Every command takes:
 | `--config <file>` | Use this config instead of `tunables.config.ts` |
 | `-h, --help` | Show help for the command |
 | `-V, --version` | Show the CLI version |
+
+`get`, `set` and `history` take `--scope workspace=acme,user=dana` to work at
+a [scope](./scopes.md). `get`, `set`, `history` and `restore` take
+`--url <url>`, or read `TUNABLES_URL`, to go through your app's tunables API
+with `TUNABLES_TOKEN` as a bearer token instead of through `connect`; see
+[Through your app's API](./cli-values.md#through-your-apps-api).
 
 A command exits 0 when it succeeds, 1 when what it checked does not hold or a
 change was refused, and 2 for a usage mistake, such as a missing config or an
@@ -87,7 +93,7 @@ export default defineConfig({
 | `envExample`, `envHeader` | Where `.env.example` is (`.env.example` by default) and the lines it starts with. |
 | `productModel` | Your pdd-kit Product Model. Defaults to `product-model` when that directory exists. |
 | `explanations`, `explanationsImport` | Where `tunables explain` writes the explanations module, and what it imports its type from (`tunables` by default). |
-| `connect` | Your app's tunables over its own store. Called only by the commands that read or change stored values. |
+| `connect` | Your app's tunables over its own store. Called only by the commands that read or change stored values, unless they are given `--url`. |
 | `disconnect` | Close what `connect` opened, so the command can exit. |
 
 Importing the config must not connect to anything: open the connection inside
@@ -98,7 +104,13 @@ run them, work without a database.
 
 A change from the terminal is recorded with your username and
 `(terminal)`, such as `ada (terminal)`, and needs a `--reason`, which is kept
-in the history.
+in the history. Through `connect`, the commands reach everything the database
+does, and your `authorize` is not asked. With `--url`, the change is recorded
+as the actor your app names for `TUNABLES_TOKEN`, and your `authorize` decides
+what it may do.
+
+[`examples/tasklane/tunables.config.ts`](https://github.com/itai-gendler/tunables/blob/main/examples/tasklane/tunables.config.ts)
+is a complete config: in memory, or on Postgres when `DATABASE_URL` is set.
 
 ## Update checks
 

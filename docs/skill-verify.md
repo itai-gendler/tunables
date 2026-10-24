@@ -2,7 +2,7 @@
 title: tunables-verify
 description: Audit an app's tunables against their rules, report every finding with where it is and the rule it breaks, and fix only the findings you choose.
 group: Skills
-order: 23
+order: 26
 ---
 
 # tunables-verify
@@ -34,12 +34,13 @@ It runs `tunables check --json` and, with a Product Model,
 | `check-failure` | The definitions, `.env.example`, explanations and Product Model agree. |
 | `hard-coded-value` | A value someone might tune is a setting, with its default in its definition. |
 | `two-homes` | One home per value, and the definition is the one home of each default. |
+| `scope-bypass` | A workspace's or a person's own value is the setting's override, read through its layers, not a table of the app's own with a precedence written by hand. |
 | `read-bypass` | Settings are read through tunables, so code gets the stored, checked value. |
 | `stale-read` | A setting applies while the app runs, without a restart. |
 | `write-bypass` | Every change is one revision, through a checked save. |
 | `unguarded-dependent` | Lowering a limit never breaks what uses it; the dependent is named. |
 | `unconfirmed-consequence` | A change that costs money, redoes work or reaches people at once is confirmed first. |
-| `open-access` | Access is the app's, decided on every request with `actor` and `authorize`. |
+| `open-access` | Access is the app's, decided on every request with `actor` and `authorize`; an owner or member changes only their own scope. |
 | `boot-needs-database` | Boot never connects to the database. |
 | `sync-missing` | A new field is stored before code reads it. |
 | `env-drift` | Every deployment value is declared once, read through its definition, and listed in `.env.example`. |
@@ -59,7 +60,7 @@ choose by number:
 ### two-homes (3)
 | # | Where | What | Rule broken | Fix |
 | - | ----- | ---- | ----------- | --- |
-| 4 | server/worker.ts:41 | `refreshMinutes ?? 60` beside `tunables.get('collection')` | The definition is the one home of each default | Delete the fallback |
+| 4 | server/projects.ts:41 | `maxProjects ?? 3` beside `tunables.get('limits')` | The definition is the one home of each default | Delete the fallback |
 ```
 
 Each finding that needs a decision says what the decision is. The report ends
@@ -81,4 +82,4 @@ tests, and the searches again.
 
 > Check this branch's settings changes.
 
-> Audit the collection group and fix what you find.
+> Audit the limits group and fix what you find.

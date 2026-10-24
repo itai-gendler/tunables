@@ -12,7 +12,7 @@ if (import.meta.prerender) {
 useSiteSeo({
   title: 'tunables · Runtime settings with guardrails',
   socialTitle: 'Runtime settings with guardrails, for the app you already run.',
-  description: 'tunables is an open-source TypeScript library for runtime settings: declared once, stored in your Postgres, edited on screens inside your app, checked whole on every save and recorded in a history you can restore from.'
+  description: 'tunables is an open-source TypeScript library for runtime settings: declared once, stored in your Postgres, set per workspace and per person within their plan, edited on screens inside your app, checked whole on every save and recorded in a history you can restore from.'
 })
 </script>
 

@@ -1,6 +1,6 @@
 ---
 name: tunables-verify
-description: Audit an app that uses tunables against its rules — run tunables check, then search the code for tunable values still hard-coded, values kept in two homes, reads and writes that bypass tunables, dependents with no guard or within, consequential changes with no confirmation, admin routes with no authorize, boot that needs the database, and .env.example drift — report every finding with file:line and the rule it breaks, and fix only the findings the user chooses. Use when the user asks to check, audit or verify the app's settings, its tunables adoption, or a branch's settings changes; use "report only" when no changes are allowed. Do not use to adopt tunables (use tunables-adopt) or to make one planned change (use tunables-define).
+description: Audit an app that uses tunables against its rules — run tunables check, then search the code for tunable values still hard-coded, values kept in two homes, per-workspace or per-user values kept beside tunables with a hand-written precedence, reads and writes that bypass tunables, dependents with no guard or within, consequential changes with no confirmation, admin routes with no authorize, boot that needs the database, and .env.example drift — report every finding with file:line and the rule it breaks, and fix only the findings the user chooses. Use when the user asks to check, audit or verify the app's settings, its tunables adoption, or a branch's settings changes; use "report only" when no changes are allowed. Do not use to adopt tunables (use tunables-adopt) or to make one planned change (use tunables-define).
 ---
 
 # Verify an app's tunables
@@ -14,7 +14,8 @@ The rules each finding is measured against:
 
 - **One home per value**: a setting in the database, edited by an
   administrator, or a deployment value in the environment, never both, and no
-  constant beside either.
+  constant beside either. A workspace's or a person's own value is that
+  setting's override, never a table of the app's own beside it.
 - **The definition is the one home of each default.**
 - **Every change is one revision**, through `save`, the screens, the API or
   `tunables set`.
@@ -23,7 +24,7 @@ The rules each finding is measured against:
 - **Consequential changes are confirmed.**
 - **Boot never needs the database.**
 - **Access is decided by the app**, through `actor` and `authorize`, on every
-  route.
+  route; an owner or member changes only their own `target.scope`.
 - **Code keeps only what is not a value.**
 - **Product meaning is not decided in code**; with pdd-kit, each field's fact
   is in the Product Model and its explanation comes from there.
@@ -73,8 +74,9 @@ except as part of a fix the user chose.
    into the repository). Every field it lists is an `unexplained-field`
    finding whose fix is a product decision.
 7. Build the inventory the searches compare against: every group, field (key,
-   unit, default), preset set, catalog and deployment value the definitions
-   declare.
+   unit, default, `override`), preset set (and its `layer`), catalog and
+   deployment value the definitions declare, and the `scopes` the app's
+   tunables are created with.
 
 ## 3. Search the code
 
@@ -99,7 +101,7 @@ except as part of a fix the user chose.
     ### two-homes (3)
     | # | Where | What | Rule broken | Fix |
     | - | ----- | ---- | ----------- | --- |
-    | 4 | server/worker.ts:41 | `refreshMinutes ?? 60` beside `tunables.get('collection')` | The definition is the one home of each default | Delete the fallback |
+    | 4 | server/projects.ts:41 | `maxProjects ?? 3` beside `tunables.get('limits')` | The definition is the one home of each default | Delete the fallback |
     ```
 
     Number findings across the whole report so the user can choose by number.

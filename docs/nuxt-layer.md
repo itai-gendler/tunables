@@ -2,7 +2,7 @@
 title: The Nuxt layer
 description: Ready screens for a Nuxt UI app — a group's form, All settings, history, presets, assignments and catalogs — placed beside what they affect.
 group: Screens
-order: 13
+order: 16
 ---
 
 # The Nuxt layer
@@ -26,16 +26,16 @@ to see the layer's components to generate their classes; see
 ## Where the screens go
 
 Put each group's form on the page beside what it affects, not on one settings
-page: collection settings on the Feeds screens, reader limits on the Readers
-screens. A group's `place` names that page, so All settings can link to it.
-The screens never decide who may see them: guard each page with your own admin
-route middleware, and the API with `authorize`.
+page: limits on the admin's Limits page, a workspace's own settings on that
+workspace's settings page. A group's `place` names that page, so All settings
+can link to it. The screens never decide who may see them: guard each page
+with your own route middleware, and the API with `authorize`.
 
 ## The components
 
 | Component | Props | Shows |
 | --- | --- | --- |
-| `TunablesGroupForm` | `group`, `history?` | One group's form |
+| `TunablesGroupForm` | `group`, `scope?`, `history?` | One group's form, for the system or one scope |
 | `TunablesOverview` | none | All settings, read-only |
 | `TunablesHistory` | `target` | A target's revisions, with restore for groups |
 | `TunablesPresets` | `set` | A preset set, by slot |
@@ -45,9 +45,9 @@ route middleware, and the API with `authorize`.
 
 ### TunablesGroupForm
 
-```vue [app/pages/admin/feeds/settings.vue]
+```vue [app/pages/admin/limits.vue]
 <template>
-  <TunablesGroupForm group="collection" />
+  <TunablesGroupForm group="limits" />
 </template>
 ```
 
@@ -68,6 +68,26 @@ One group, edited as a whole:
 Leaving the page with unsaved changes asks first, by link or by closing the
 tab.
 
+Given a `scope`, the form edits that [scope](./scopes.md)'s own values:
+
+```vue [app/pages/workspace.vue]
+<template>
+  <TunablesGroupForm group="limits" :scope="{ workspace: 'acme' }" />
+</template>
+```
+
+- a badge beside the title names the scope, as your `scopeLabel` reads it;
+- only the fields that scope may set are shown, or a line saying it may set
+  none;
+- each field says where its value comes from, *Inherited from Pro plan* or
+  *Set here · inherits 50 from Pro plan*, with its bound, *At most 50*;
+- a field set here offers *Use 50 from Pro plan* in place of the way back to
+  its default;
+- the history panel lists that scope's own revisions.
+
+Your `authorize` must let the person reach their scope, and read the
+description; see [Who can do what](./access.md#self-service-per-scope).
+
 ### TunablesOverview
 
 ```vue [app/pages/admin/settings.vue]
@@ -84,7 +104,7 @@ It is read-only; changes happen on each group's own form.
 ### TunablesHistory
 
 ```vue
-<TunablesHistory :target="{ kind: 'preset', name: 'run-configs', id: 'weekly' }" />
+<TunablesHistory :target="{ kind: 'preset', name: 'plans', id: 'pro' }" />
 ```
 
 Revisions newest first, a page at a time: who, when, why, and each value
@@ -93,19 +113,20 @@ the same checks as a save. It emits `restored`.
 
 ### TunablesPresets and TunablesAssign
 
-```vue [app/pages/admin/run-configs/index.vue]
+```vue [app/pages/admin/plans.vue]
 <template>
-  <TunablesPresets set="run-configs" />
+  <TunablesPresets set="plans" />
 </template>
 ```
 
 A preset set by slot: each preset, which is the default, how many subjects are
 assigned it, and its history; create, edit, make default and remove.
 
-`TunablesAssign` goes where your app shows a subject, such as a reader's page:
+`TunablesAssign` goes where your app shows a subject, such as a workspace's
+row in the admin's list of workspaces:
 
 ```vue
-<TunablesAssign set="run-configs" :subject="reader.id" slot="daily" label="Daily Run Config" />
+<TunablesAssign set="plans" :subject="workspace.id" slot="plan" label="Plan" />
 ```
 
 It offers *Follow the default* and every preset in the slot, and emits
@@ -113,7 +134,7 @@ It offers *Follow the default* and every preset in the slot, and emits
 
 ### TunablesCatalog
 
-```vue [app/pages/admin/run-configs/models.vue]
+```vue [app/pages/admin/models.vue]
 <template>
   <TunablesCatalog catalog="models" />
 </template>
@@ -158,6 +179,12 @@ export default defineNuxtPlugin((nuxtApp) => {
 
 `orpcClient` takes the `tunables` branch of your oRPC client, wherever you
 nested `tunablesRouter`.
+
+## See them running
+
+The repository's `playground/` is [Tasklane](./tasklane-example.md#the-playground)
+on these components, with staff, a workspace owner and a member to switch
+between: `pnpm --dir playground dev`.
 
 ## Your own screens
 

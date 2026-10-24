@@ -2,7 +2,7 @@
 title: Install skills
 description: Install tunables' agent skills for Claude Code, Codex CLI, Cursor, Gemini CLI and GitHub Copilot, and keep them current.
 group: CLI
-order: 19
+order: 22
 ---
 
 # Install skills: install, update

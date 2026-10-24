@@ -2,7 +2,7 @@
 title: tunables-define
 description: Add, change, rename or remove one value in an app that uses tunables, with its home, its checks, its reads and what happens to stored values.
 group: Skills
-order: 22
+order: 25
 ---
 
 # tunables-define
@@ -28,12 +28,16 @@ the values already stored in each environment.
    `tunables model draft` and brings it to `/pdd-ideate`. Without one, it
    writes the field's `help` in the product's words.
 5. **Designs the field and its checks**: key, kind, unit, default, bounds,
-   section, effects and fact or label; the `rules` it joins, the guard for app
+   section, effects and fact or label; when your app has
+   [scopes](./scopes.md), whether a workspace or a person may set their own
+   (`override`, freely or at most or at least what they inherit); the `rules` it joins, the guard for app
    data that depends on it and the `hold` on the write that saves such data,
    the `within` for presets it bounds, and the `confirm` for a costly change.
    Whatever you did not state, it presents for approval first.
 6. **Writes the change**: the definition, new effects or units, each read
-   replaced and the old constant, fallback or environment read deleted, and
+   replaced (at the workspace's or person's path, `get(group, { scope })`,
+   where their own value applies) and the old constant, fallback or
+   environment read deleted, and
    `tunables explain` or `tunables env` when they apply.
 7. **Plans stored values.** A changed definition never changes a stored value,
    so for each environment it says what `sync` will do and runs or hands you
@@ -53,11 +57,16 @@ the values already stored in each environment.
 | Remove a field or group | `sync` reports the stored key as undeclared and keeps it. |
 | Environment to setting | Add the field; after `sync`, `set` the value each environment ran with; remove the variable. |
 | Setting to environment | Read each environment's value first, add the deployment value, remove the field, set the variable where it differed. |
+| Allow an override, or loosen its bound | Nothing stored changes; each scope inherits until it sets its own. |
+| Stop allowing an override at a scope | Overrides stored there are kept and still read. Clear each with `set --scope … --inherit key` first, then ship the change. |
+| Bound an override that was free | An override outside the new bound stays until the next save at or above its scope is refused, naming it. Move each inside with `set --scope` first. |
 
 ## Ask for it
 
 > Make the export batch size tunable, between 100 and 5000.
 
-> Lower the default Story limit to 18, and tell me what happens in production.
+> Lower the default Tasks per project to 150, and tell me what happens in production.
+
+> Let each person lower their own AI suggestions a day, never above their workspace's.
 
 > Move `LOG_LEVEL` into a deployment value with a default.

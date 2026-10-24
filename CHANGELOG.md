@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Scopes:** each workspace and person can set its own value where a field allows it. An app declares its chain of scopes, a field says where it may be overridden, freely or at most or at least what it inherits, and a value is read through the system, the plan, the workspace and the person. A change that would leave a narrower value outside its bound is refused, naming it, and each scope keeps its own history and restore.
+- Plans as a layer: a preset set can sit between the system values and a workspace's own.
+- Scoped reads and changes in the API, the client, the Vue form and the Nuxt form, which shows where each value comes from and offers to use the inherited value again; the app's access decision receives the scope, so owners and members can change only their own.
+- `tunables get`, `set` and `history` take `--scope`, and `set` takes `--inherit`; `get`, `set`, `history` and `restore` can go through the app's API with `--url` and a token instead of the database.
+- Tasklane, a todo app with workspaces and people, as the example throughout the docs, in `examples/`, served by Express and by Hono, and as the playground.
+- Docs: what tunables is for, scopes, and who can do what.
+
+### Changed
+
+- A catalog entry picked by a setting, for the whole system or at a scope, counts as in use and cannot be retired.
+- The news app tunables was extracted from is now only a test fixture, under `test/fixtures/news`.
+
 ## [0.1.0] - 2026-10-24
 
 ### Added

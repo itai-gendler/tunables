@@ -89,6 +89,48 @@ which restate defaults by design; tests that assert a default.
 
 ---
 
+## scope-bypass
+
+**Rule:** one home per value holds per workspace and per person too: a value a
+workspace or a person sets for themselves is that setting's override, read
+through its layers, bounded by what it inherits, and recorded as a revision.
+
+**Detect:**
+
+```bash
+rg -n -i "(workspace|tenant|org|team|account|user|member)_?(settings|preferences|limits|overrides)" <dir>
+rg -n "tunables\.get\(" <dir>   # then read each for ?? or a comparison against a tenant's own value
+```
+
+Then check:
+- a table or column that holds a per-workspace or per-person value of
+  something a group also declares (`workspace_settings.max_projects` beside
+  `limits.maxProjects`);
+- a hand-written precedence at the read: `workspace.maxProjects ??
+  plan.maxProjects ?? (await tunables.get('limits')).maxProjects`, or a
+  `Math.min` of a tenant's value and a setting;
+- plan or tier limits kept in code or a table while the group they set is in
+  tunables, instead of a preset set with `layer`;
+- a read without `{ scope }` in a request for one workspace or person, for a
+  field that declares `override` at that scope: it reads the system value;
+- an override bound checked by hand in the app's own form, instead of
+  `override: { workspace: 'at-most' }`.
+
+**Fix:** a decision first — which scopes may set the value, and how (freely,
+at most or at least what they inherit). Then declare `scopes` on
+`createTunables` and `override` on the field (or `layer` on the plan set),
+move each stored per-tenant value with
+`tunables set <group> key=value --scope workspace=<id> --reason "Moved from <table>"`
+(assign plans first, through the presets API, since an override is checked
+against its plan), read with `tunables.get(group, { scope })`, and delete the
+table, the column and the precedence code.
+
+**Not a finding:** a person's own data with no default anyone tunes for them
+(a saved filter, a dismissed hint); a value scoped by tunables and also shown
+in the app's own screen through `entry(group, { scope })`.
+
+---
+
 ## read-bypass
 
 **Rule:** the app reads a setting through the API — `tunables.get` (or
@@ -174,6 +216,9 @@ Then check:
 - presets whose fields a setting bounds → the preset set has `within` covering
   each bound;
 - fields of one group that bound one another → the group's `rules`;
+- a workspace's or a person's own value that must stay within what it
+  inherits → the field's `override` rule is `at-most` or `at-least` at that
+  scope, not `free`;
 - app data that uses a catalog entry → a `uses` provider for that catalog;
 - a guard that reads only `host` → it falls back to the app's own database when
   `host` is undefined (the CLI passes none).
@@ -182,7 +227,7 @@ Then check:
 `tunables-define` guards reference has the shapes), with a test that the
 lowering is refused, naming the dependent.
 
-**Not a finding:** a limit that only caps new additions (Briefs per reader),
+**Not a finding:** a limit that only caps new additions (Projects per workspace),
 checked where things are added: lowering it keeps what exists.
 
 ---
@@ -218,12 +263,14 @@ rg -n "createHandler\(|tunablesMiddleware\(|tunablesRouter\(" <dir>
 
 For each: `authorize` is present and decides from the actor's role (not
 `() => true`, not a check of sign-in alone); `actor` returns the signed-in
-person, not a constant; the route is not reachable to readers where it should
-not be. Also: app routes that call `save`, `reset`, `restore`, preset or
-catalog changes, and check no role first.
+person, not a constant; the route is not reachable to end users where it should
+not be. With scopes: an `authorize` that admits a workspace owner or a member
+must check `target.scope` against their own workspace and person, or one
+owner can change another workspace. Also: app routes that call `save`,
+`reset`, `restore`, preset or catalog changes, and check no role first.
 
 **Fix:** write `authorize` from the app's existing roles, per `action` and
-target where they differ; return the session's person from `actor`; add the
+target where they differ, and per `target.scope` for owners and members; return the session's person from `actor`; add the
 role check to the app's own routes.
 
 **Not a finding:** a missing `authorize` refuses everything, so it breaks the
@@ -320,7 +367,9 @@ need `/pdd-ideate`).
 
 **Rule:** each value sits in the home its nature gives it.
 
-**Detect:** a group field one end user owns (a per-person preference); a
+**Detect:** a group field one end user owns with no `override` (a per-person
+preference staff never set); a field with `override` at a scope that should
+not set it (a model's cost, a safety rail, opened to every person); a
 mechanic (lock id, batch size, how much text is kept) on an administrator's
 screen; a secret or connection string in a group; several environment
 variables that change together for an experiment; a list of choices kept as a
@@ -328,6 +377,6 @@ variables that change together for an experiment; a list of choices kept as a
 catalog).
 
 **Fix:** a decision for the user, then the move: user data to the app's
-tables, a mechanic or secret to the environment, an experiment to a preset,
+tables, or `override: ['user']` when staff set its default, a mechanic or secret to the environment, an experiment to a preset,
 a growing list to a catalog. Move stored values with `tunables set` or the
 environment, and delete the old home.

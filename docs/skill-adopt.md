@@ -2,7 +2,7 @@
 title: tunables-adopt
 description: Bring tunables into an app that has none yet, from an inventory of every value to a wired, synced app with the old homes removed.
 group: Skills
-order: 21
+order: 24
 ---
 
 # tunables-adopt
@@ -23,11 +23,16 @@ adoption, [`tunables-verify`](./skill-verify.md).
 2. **Inventories every value.** Hard-coded limits, intervals, timeouts, sizes,
    retry counts, thresholds and budgets; every environment read; settings
    tables, files and their seeds; admin forms that edit them; feature switches;
-   and named configurations the app keeps several of. For each, where it is
+   named configurations the app keeps several of, such as plans; and values
+   kept per workspace or per person beside a global one, with the code that
+   picks between them. For each, where it is
    defined, every read, its value, any per-environment override, and what
    depends on it.
 3. **Classifies each into one home**: a setting in a group, a preset set, a
-   catalog, a deployment value, the app's own user data, or code. When the
+   catalog, a deployment value, the app's own user data, or code. For a
+   setting a workspace or a person may set for themselves, it declares the
+   app's [scopes](./scopes.md) and the field's `override`; plans that set a
+   group's values per workspace become a preset set that is a `layer` of it. When the
    evidence does not settle it, it asks you rather than guessing.
 4. **Designs the definitions**: groups by what they govern and who tunes them,
    each field's kind, unit, default, bounds, section and effects, and the
@@ -40,10 +45,13 @@ adoption, [`tunables-verify`](./skill-verify.md).
    tables; `tunables.config.ts`; the API with `actor` and `authorize` from your
    own sign-in; the screens beside what each group affects, and All settings;
    `tunables sync` in the deploy step; every read replaced, and every old
-   constant, default and fallback deleted as its read moves.
+   constant, default and fallback deleted as its read moves. With scopes,
+   `authorize` lets an owner or a member change only their own `target.scope`,
+   and their own settings pages use the scoped form.
 7. **Moves existing values across.** In each environment it can reach, `sync`
    seeds the defaults, then `tunables set … --reason "Moved from <old home>"`
-   records each value that differed. For the rest, it hands you the exact
+   records each value that differed, at its scope with `--scope` for a
+   workspace's or a person's own. For the rest, it hands you the exact
    commands. Then it removes the old homes.
 8. **Settles the Product Model**, when there is one: `tunables model draft`
    drafts the facts, `/pdd-ideate` decides them with you, and

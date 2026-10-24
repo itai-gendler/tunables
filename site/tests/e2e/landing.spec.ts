@@ -29,18 +29,18 @@ test('every section is on the page, in order', async ({ page }) => {
   ])
 })
 
-test('turning the Story limit down past a Run Config refuses the save, naming it', async ({ page }) => {
+test('turning the Pro plan\'s Projects down past what a workspace keeps refuses the save, naming it', async ({ page }) => {
   await page.goto('/')
   await waitForHydration(page)
-  const slider = page.getByRole('slider', { name: 'Story limit' })
-  await slider.fill('12')
+  const slider = page.getByRole('slider', { name: 'Projects' })
+  await slider.fill('30')
   const demo = page.locator('[data-dial-demo]')
   await expect(demo.getByText('Not saved')).toBeVisible()
-  await expect(demo.getByText('Run Config "Weekly brief": its Story ceiling, 15, is above the Story limit of 12.')).toBeVisible()
-  await slider.fill('20')
+  await expect(demo.getByText('Hobby club keeps Projects at 35, above 30.')).toBeVisible()
+  await slider.fill('10')
+  await expect(demo.getByText('Acme keeps Projects at 20, above 10.')).toBeVisible()
+  await slider.fill('40')
   await expect(demo.getByText('Checks pass')).toBeVisible()
-  await slider.fill('28')
-  await expect(demo.getByText(homeContent.demo.ceilingProblem)).toBeVisible()
 })
 
 test('the home page has no accessibility violations', async ({ page }) => {
