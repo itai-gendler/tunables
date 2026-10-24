@@ -6,8 +6,8 @@ import { displayValue, useCatalog, useTunablesDescription, type CatalogEntrySumm
  * entries, and retire or reinstate them. Entries are never deleted, and one in
  * use cannot be retired.
  */
-/** `bare` leaves the title and description to the page around it. */
-const props = defineProps<{ catalog: string, bare?: boolean }>()
+/** `bare` leaves the title and description to the page around it; `size` sets its form controls' size. */
+const props = defineProps<{ catalog: string, bare?: boolean, size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }>()
 const { description } = useTunablesDescription()
 const catalog = useCatalog(toRef(props, 'catalog'))
 const definition = computed(() => description.value?.catalogs.find(item => item.id === props.catalog))
@@ -124,6 +124,7 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
           </UAlert>
           <div class="divide-y divide-default">
             <TunablesField
+              :size="size"
               v-for="field in definition.fields"
               :key="field.key"
               v-model="values[field.key]"
@@ -134,9 +135,9 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
             />
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2 border-t border-default pt-4">
-            <UInput v-model="reason" placeholder="Why (kept in the history)" class="min-w-48 flex-1" aria-label="Reason for this change" />
-            <UButton color="neutral" variant="ghost" label="Cancel" @click="editing = undefined" />
-            <UButton type="submit" :label="editing === 'new' ? 'Add' : 'Save'" :loading="saving" />
+            <UInput v-model="reason" placeholder="Why (kept in the history)" class="min-w-48 flex-1" aria-label="Reason for this change" :size="size" />
+            <UButton color="neutral" variant="ghost" label="Cancel" :size="size" @click="editing = undefined" />
+            <UButton type="submit" :label="editing === 'new' ? 'Add' : 'Save'" :loading="saving" :size="size" />
           </div>
         </form>
       </template>

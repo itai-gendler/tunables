@@ -2,7 +2,7 @@
 import { useCatalog, useTunablesDescription, type PresetSummary, type PresetsDescription, type Problem } from 'tunables/vue'
 
 /** One preset's form: its key and slot when new, its label, and its fields by section. */
-const props = defineProps<{ set: PresetsDescription, preset?: PresetSummary, saving?: boolean, problems?: Problem[] }>()
+const props = defineProps<{ set: PresetsDescription, preset?: PresetSummary, saving?: boolean, problems?: Problem[], size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }>()
 const emit = defineEmits<{ save: [input: { key: string, slot: string, label: string, values: Record<string, unknown>, reason?: string }], cancel: [] }>()
 const { description } = useTunablesDescription()
 
@@ -43,10 +43,10 @@ function submit() {
   <form class="space-y-4" @submit.prevent="submit">
     <div class="grid gap-4 sm:grid-cols-3">
       <UFormField label="Label" required>
-        <UInput v-model="label" class="w-full" />
+        <UInput v-model="label" class="w-full" :size="size" />
       </UFormField>
       <UFormField label="Key" :help="preset ? 'A key never changes.' : 'Lowercase letters, digits and hyphens.'">
-        <UInput v-model="key" class="w-full" :disabled="Boolean(preset)" />
+        <UInput v-model="key" class="w-full" :disabled="Boolean(preset)" :size="size" />
       </UFormField>
       <UFormField label="Slot" :help="preset ? 'A slot never changes.' : undefined">
         <USelect v-model="slot" :items="set.slots" class="w-full" :disabled="Boolean(preset)" />
@@ -65,6 +65,7 @@ function submit() {
       <template #fields="{ item }">
         <div class="divide-y divide-default">
           <TunablesField
+            :size="size"
             v-for="field in sections.find(section => section.name === item.value)?.fields ?? []"
             :key="field.key"
             v-model="values[field.key]"
@@ -78,9 +79,9 @@ function submit() {
       </template>
     </UTabs>
     <div class="flex flex-wrap items-center justify-end gap-2 border-t border-default pt-4">
-      <UInput v-model="reason" placeholder="Why (kept in the history)" class="min-w-48 flex-1" aria-label="Reason for this change" />
-      <UButton color="neutral" variant="ghost" label="Cancel" @click="emit('cancel')" />
-      <UButton type="submit" :label="preset ? 'Save' : `Create ${set.singular}`" :loading="saving" />
+      <UInput v-model="reason" placeholder="Why (kept in the history)" class="min-w-48 flex-1" aria-label="Reason for this change" :size="size" />
+      <UButton color="neutral" variant="ghost" label="Cancel" :size="size" @click="emit('cancel')" />
+      <UButton type="submit" :label="preset ? 'Save' : `Create ${set.singular}`" :loading="saving" :size="size" />
     </div>
   </form>
 </template>

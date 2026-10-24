@@ -35,13 +35,21 @@ with your own route middleware, and the API with `authorize`.
 
 | Component | Props | Shows |
 | --- | --- | --- |
-| `TunablesGroupForm` | `group`, `scope?`, `history?` | One group's form, for the system or one scope |
+| `TunablesGroupForm` | `group`, `scope?`, `history?`, `bare?`, `footer?`, `size?` | One group's form, for the system or one scope |
 | `TunablesOverview` | none | All settings, read-only |
 | `TunablesHistory` | `target` | A target's revisions, with restore for groups |
-| `TunablesPresets` | `set` | A preset set, by slot |
+| `TunablesPresets` | `set`, `bare?`, `size?` | A preset set, by slot |
 | `TunablesAssign` | `set`, `subject`, `for-slot`, `label?` | The preset one subject follows for one slot |
-| `TunablesCatalog` | `catalog` | A catalog's entries |
+| `TunablesCatalog` | `catalog`, `bare?`, `size?` | A catalog's entries |
 | `TunablesFieldHint` | `label`, `help?`, `defaultDisplay?` | The question mark beside a label, for your own forms |
+
+`bare` leaves the title and description to the page around a screen, for an app
+whose own page header already says them. `footer` names an element, such as
+`#page-footer`, that the group form's unsaved-changes bar is placed in instead
+of sticking to the form's bottom. `size` sets the size of every control, such as
+`md` in an administration whose forms read larger than the rest of the app. Each
+field has an address, `#tunables-<key>`, and each section of a group
+`#tunables-<group>-<section>`, so a search or a link can open the page at it.
 
 ### TunablesGroupForm
 

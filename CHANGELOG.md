@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Deployment values can be optional, secret or carry a local example, and `.env.example` wraps their descriptions at 80 columns.
+- The screens fit an app's own pages: `bare` leaves the title to the page, the group form's unsaved-changes bar can sit in a page's footer, `size` sets the size of every control, and every field and section has an address to link to.
+- A section states once the effects all its settings share.
+
+### Changed
+
+- `TunablesAssign` takes `for-slot` instead of `slot`, which Vue reserves.
+
+### Fixed
+
+- A range or size stored in Postgres no longer reads as changed from its default.
+- A history lists its changes newest first past ten of them on Postgres.
+- `tunables check` reads a stated default of "1 day" as the "24 hours" a setting declares.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added

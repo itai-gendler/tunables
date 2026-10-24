@@ -52,7 +52,20 @@ export const environment = defineEnvironment({
 | `env.choice` | one of `options` | one of the options, exactly |
 
 Each takes a `description`, a `default` unless it must be set, and a `section`
-it is listed under in `.env.example`.
+it is listed under in `.env.example`. Three more say what kind of value it is:
+
+- `optional: true` — it may be left unset with no default, and reads as
+  `undefined`; the app decides what its absence means, such as a provider key
+  without which one feature is off.
+- `secret: true` — it holds a credential. A problem with it never prints its
+  value, and `.env.example` shows only a placeholder `example`, if any.
+- `example: '…'` — a value for local development that is not the default,
+  written set in `.env.example`, such as a local database address.
+
+```ts
+GROQ_API_KEY: env.string({ optional: true, secret: true, description: 'The model provider\'s key. Absent, model features are off.' }),
+DATABASE_URL: env.string({ optional: true, example: 'postgres://postgres:postgres@localhost:5433/app', description: 'The database. Absent, pages that need none still serve.' })
+```
 
 ## Reading them
 
@@ -81,8 +94,10 @@ Both read `process.env` unless you pass another source.
 ## .env.example
 
 `.env.example` is written from the declarations, never by hand. Each value
-appears under its section, with its description, commented out at its default;
-one without a default is left uncommented and empty, because it must be set.
+appears under its section, with its description wrapped at 80 columns:
+set to its `example` when it has one, commented out at its default, commented
+out and empty when it is optional, and left uncommented and empty when it must
+be set.
 
 ```bash
 npx tunables env

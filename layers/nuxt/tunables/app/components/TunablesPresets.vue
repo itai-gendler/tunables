@@ -5,8 +5,8 @@ import { usePresets, useTunablesDescription, type PresetSummary, type Problem } 
  * A preset set, such as Run Configs: each slot's presets with its default and
  * how many follow each, and creating, editing, defaulting and removing them.
  */
-/** `bare` leaves the title and description to the page around it. */
-const props = defineProps<{ set: string, bare?: boolean }>()
+/** `bare` leaves the title and description to the page around it; `size` sets its form controls' size. */
+const props = defineProps<{ set: string, bare?: boolean, size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }>()
 const { description } = useTunablesDescription()
 const presets = usePresets(toRef(props, 'set'))
 const definition = computed(() => description.value?.presets.find(item => item.id === props.set))
@@ -99,6 +99,7 @@ async function remove() {
     <USlideover v-if="definition" v-model:open="editorOpen" :title="editing === 'new' ? `New ${definition.singular}` : `Edit ${(editing as PresetSummary | undefined)?.label ?? ''}`" :ui="{ content: 'sm:max-w-3xl' }">
       <template #body>
         <TunablesPresetEditor
+          :size="size"
           v-if="editing"
           :key="editing === 'new' ? 'new' : editing.key"
           :set="definition"
