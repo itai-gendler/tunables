@@ -33,7 +33,8 @@ adds what is specific to `site/`.
 - `tests/integration/` (Vitest), `tests/e2e/` (Playwright, against the
   generated site), `tests/support/`.
 - `docs/` — [architecture](./docs/architecture.md), [brand and UI](./docs/brand.md),
-  [engineering standards](./docs/engineering-standards.md), and `adr/`.
+  [engineering standards](./docs/engineering-standards.md),
+  [deployment](./docs/deployment.md), and `adr/`.
 
 ## Docs content
 

@@ -75,7 +75,8 @@ a cited rule is not in the Product Model.
 - **The fixture stays faithful to news.** Its keys, facts and defaults are
   news's own; `node dist/cli.js --cwd test/fixtures/news check` holds them to
   news's Product Model. Examples in docs, the site and the skills use Tasklane,
-  not news.
+  not news ([decision 0010](decisions/0010-tasklane-is-the-example-news-is-a-fixture.md));
+  when Tasklane cannot show a feature, extend Tasklane.
 
 ## Local setup
 
@@ -88,6 +89,16 @@ a cited rule is not in the Product Model.
   `http://localhost:3000` with in-memory storage, or on Postgres when
   `DATABASE_URL` is set. `pnpm --dir playground screenshots` photographs every
   screen in both themes.
+- Screenshot baselines are kept per platform, and CI compares the Linux ones.
+  After accepting a screen change on macOS with
+  `pnpm --dir playground screenshots:update`, regenerate the Linux baselines in
+  `mcr.microsoft.com/playwright:<the @playwright/test version>-noble`, on a copy
+  of the repository without `node_modules` (a Linux install must not overwrite
+  the macOS one): `pnpm install --frozen-lockfile`, then
+  `npx playwright test --update-snapshots=all` in `playground/`, and copy
+  `tests/__screenshots__/linux` back. Commit both with the change.
+- The site: `pnpm --dir site dev`. How tunables.dev is deployed, and the
+  Cloudflare setup behind it, is in [site/docs/deployment.md](site/docs/deployment.md).
 
 ## Change and release checks
 
@@ -104,9 +115,16 @@ a cited rule is not in the Product Model.
   before each push; do not bypass them with `--no-verify`.
 - Dependencies are updated by Renovate.
 - Prepare a release in its own pull request: `pnpm version <version>
-  --no-git-tag-version`, fetch, then `pnpm changelog:release`. The Release
-  workflow tags it and the Publish workflow publishes to npm with trusted
-  publishing.
+  --no-git-tag-version`, fetch, then `pnpm changelog:release`. Once it is
+  merged, dispatch the Release workflow on `main` with that version
+  (`gh workflow run release.yml -f version=<version>`): it verifies, tags
+  `v<version>` and starts Publish, which publishes to npm with trusted
+  publishing and provenance and creates the GitHub release. The registry shows
+  the version a minute or two later.
 - Keep `.claude-plugin/plugin.json` and `package.json` versions in sync
   (`pnpm version` does).
-- Do not publish, tag, or push unless explicitly asked.
+- Docs, the Product Model and these files describe only the current state.
+  When something stops being true, delete or rewrite it; do not annotate what
+  used to be.
+- Do not publish, tag, or push unless explicitly asked, and never push to
+  `main` without being asked to.
