@@ -1,6 +1,6 @@
 {
   "name": "tunables",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Runtime settings with guardrails: adopt tunables in an app, define settings the right way, and verify that no tunable value is hard-coded or kept in two places.",
   "author": {
     "name": "Itai Gendler",
