@@ -1,15 +1,8 @@
 import postgres from 'postgres'
-import { createTunables, memoryStore, type TunablesStore } from 'tunables'
+import { createTunables, memoryStore, type ScopePath, type TunablesStore } from 'tunables'
+import type { AccessTarget } from 'tunables/server'
 import { fromPostgresJs, migrate, postgresStore } from 'tunables/postgres'
-import { catalogs, collectionNotes, effects, feedsAbove, groups, presets, units, type FixtureFeed } from '../../../fixture/news'
-import { explanations } from '../../../fixture/explanations'
-
-/** The Feeds the fixture's news keeps, which the collection bounds must stay above. */
-export const fixtureFeeds: FixtureFeed[] = [
-  { name: 'Ars Technica', maxArticles: 300, lookbackDays: 30, official: true },
-  { name: 'The Verge', maxArticles: 200, lookbackDays: 14, official: true },
-  { name: 'A personal blog', maxArticles: 50, lookbackDays: 90, official: false }
-]
+import { catalogs, effects, groups, presets, scopeLabel, scopes } from '../../../examples/tasklane/tunables'
 
 async function makeTunables() {
   let store: TunablesStore & { reset?: () => void }
@@ -22,19 +15,16 @@ async function makeTunables() {
   } else {
     store = memoryStore()
   }
-  const tunables = createTunables({
-  store,
-  groups,
-  presets,
-  catalogs,
-  effects,
-  units,
-  explanations,
-  guards: { collection: [feedsAbove(() => fixtureFeeds)] },
-  notes: { collection: collectionNotes(() => fixtureFeeds) }
-  })
-  await tunables.sync({ actor: 'playground' })
+  const tunables = createTunables({ store, groups, presets, catalogs, effects, scopes, scopeLabel })
+  await seed(tunables)
   return { tunables, store }
+}
+
+/** Seed the defaults, and put Acme on the Pro plan; Hobby club stays on the default plan. */
+async function seed(tunables: Awaited<ReturnType<typeof makeTunables>>['tunables']) {
+  await tunables.sync({ actor: 'playground' })
+  const plans = tunables.presets('plans')
+  if (!(await plans.assignments('acme')).length) await plans.assign('acme', 'plan', 'pro', { actor: 'playground' })
 }
 
 let made: ReturnType<typeof makeTunables> | undefined
@@ -49,19 +39,39 @@ export async function resetPlayground() {
   const { tunables, store } = await usePlaygroundTunables()
   if (!store.reset) throw createError({ statusCode: 409, message: 'Only the memory store can be reset.' })
   store.reset()
-  await tunables.sync({ actor: 'playground' })
+  await seed(tunables)
 }
 
-/** Who the playground says is signed in, from its cookie: an Administrator or a reader. */
-export interface PlaygroundContext {
-  who: 'admin' | 'reader'
+/**
+ * Who the playground says is signed in, from its cookie: Sam on Tasklane's
+ * staff, Olivia who owns the Acme workspace, or Dana, a member of Acme.
+ */
+export type Who = 'staff' | 'owner' | 'member'
+export interface PlaygroundContext { who: Who }
+
+const people: Record<Who, { id: string, name: string }> = {
+  staff: { id: 'sam', name: 'Sam' },
+  owner: { id: 'olivia', name: 'Olivia' },
+  member: { id: 'dana', name: 'Dana' }
+}
+
+/** The one scope each person may change: their workspace, or their own settings in it. */
+function ownScope(who: Who, scope: ScopePath | undefined): boolean {
+  if (who === 'owner') return scope?.workspace === 'acme' && !scope.user
+  if (who === 'member') return scope?.workspace === 'acme' && scope.user === 'dana'
+  return false
 }
 
 export const access = {
-  actor: (context: PlaygroundContext) => context.who === 'admin' ? { id: 'ada', name: 'Ada' } : { id: 'rae', name: 'Rae' },
-  authorize: (context: PlaygroundContext) => context.who === 'admin'
+  actor: (context: PlaygroundContext) => people[context.who],
+  authorize: (context: PlaygroundContext, request: { target: AccessTarget }) => {
+    if (context.who === 'staff') return true
+    // Everyone signed in reads the description, so their own settings screen can show.
+    if (request.target.kind === 'description') return true
+    return request.target.kind === 'group' && ownScope(context.who, request.target.scope)
+  }
 }
 
 export function playgroundContext(cookie: string | undefined): PlaygroundContext {
-  return { who: cookie === 'reader' ? 'reader' : 'admin' }
+  return { who: cookie === 'owner' || cookie === 'member' ? cookie : 'staff' }
 }

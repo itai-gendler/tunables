@@ -4,13 +4,17 @@
 @source "../../../../layers/nuxt/tunables/app";
 
 /*
- * The host's theme decides contrast. Teal at 500 is too light for white text
- * and for links on white, so this host uses darker steps for its primary.
+ * The host's theme decides contrast. The 500 steps are too light for text on
+ * white, so this host uses darker steps for its primary, success and error.
  */
 :root {
   --ui-primary: var(--ui-color-primary-700);
+  --ui-success: var(--ui-color-success-700);
+  --ui-error: var(--ui-color-error-700);
 }
 
 .dark {
   --ui-primary: var(--ui-color-primary-300);
+  --ui-success: var(--ui-color-success-300);
+  --ui-error: var(--ui-color-error-300);
 }

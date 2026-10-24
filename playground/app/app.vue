@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ htmlAttrs: { lang: 'en' }, titleTemplate: title => title ? `${title} · news administration` : 'news administration' })
+useHead({ htmlAttrs: { lang: 'en' }, titleTemplate: title => title ? `${title} · Tasklane` : 'Tasklane' })
 </script>
 
 <template>

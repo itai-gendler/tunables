@@ -1,14 +1,26 @@
 <script setup lang="ts">
-const who = useCookie<'admin' | 'reader'>('playground-who', { default: () => 'admin' })
-const nav = [
-  { label: 'Feeds', children: [{ label: 'Settings', to: '/admin/feeds/settings' }] },
-  { label: 'Run Configs', children: [{ label: 'Run Configs', to: '/admin/run-configs' }, { label: 'Settings', to: '/admin/run-configs/settings' }, { label: 'Models', to: '/admin/run-configs/models' }] },
-  { label: 'Readers', children: [{ label: 'Readers', to: '/admin/readers' }, { label: 'Limits', to: '/admin/readers/limits' }] },
-  { label: 'All settings', children: [{ label: 'All settings', to: '/admin/settings' }] }
+type Who = 'staff' | 'owner' | 'member'
+const who = useCookie<Who>('playground-who', { default: () => 'staff' })
+
+/** Each person sees what Tasklane would show them: staff the administration, an owner their workspace, a member their own settings. */
+const navs: Record<Who, { label: string, children: { label: string, to: string }[] }[]> = {
+  staff: [
+    { label: 'Workspaces', children: [{ label: 'Workspaces', to: '/admin/workspaces' }, { label: 'Plans', to: '/admin/plans' }, { label: 'Limits', to: '/admin/limits' }] },
+    { label: 'Tasks', children: [{ label: 'Workspace defaults', to: '/admin/defaults' }, { label: 'Models', to: '/admin/models' }] },
+    { label: 'All settings', children: [{ label: 'All settings', to: '/admin/settings' }] }
+  ],
+  owner: [{ label: 'Acme', children: [{ label: 'Workspace settings', to: '/workspace' }] }],
+  member: [{ label: 'Acme', children: [{ label: 'My settings', to: '/me' }] }]
+}
+const nav = computed(() => navs[who.value] ?? navs.staff)
+const people = [
+  { value: 'staff', label: 'Sam (Tasklane staff)' },
+  { value: 'owner', label: 'Olivia (owns Acme)' },
+  { value: 'member', label: 'Dana (member of Acme)' }
 ]
-const people = [{ value: 'admin', label: 'Ada (Administrator)' }, { value: 'reader', label: 'Rae (reader)' }]
-function switchTo(value: 'admin' | 'reader') {
+async function switchTo(value: Who) {
   who.value = value
+  await navigateTo(value === 'owner' ? '/workspace' : value === 'member' ? '/me' : '/admin/limits')
   reloadNuxtApp()
 }
 </script>
@@ -18,17 +30,17 @@ function switchTo(value: 'admin' | 'reader') {
     <header class="border-b border-default">
       <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-4 px-4 py-3">
         <NuxtLink to="/" class="font-semibold text-highlighted">
-          news · administration
+          Tasklane
         </NuxtLink>
         <span class="text-xs text-muted">tunables playground</span>
         <div class="ml-auto flex items-center gap-2">
-          <USelect :model-value="who" :items="people" class="w-52" aria-label="Signed in as" @update:model-value="switchTo($event as 'admin' | 'reader')" />
+          <USelect :model-value="who" :items="people" class="w-60" aria-label="Signed in as" @update:model-value="switchTo($event as Who)" />
           <UColorModeButton />
         </div>
       </div>
     </header>
     <div class="mx-auto grid max-w-6xl gap-8 px-4 py-6 md:grid-cols-[11rem_minmax(0,1fr)]">
-      <nav aria-label="Administration">
+      <nav aria-label="Settings">
         <ul class="space-y-4 text-sm">
           <li v-for="area in nav" :key="area.label">
             <p class="text-xs font-semibold uppercase tracking-wide text-muted">

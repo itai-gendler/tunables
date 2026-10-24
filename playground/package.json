@@ -2,7 +2,7 @@
   "name": "@tunables/playground",
   "private": true,
   "type": "module",
-  "description": "The news fixture as a Nuxt app: tunables' screens over oRPC, with Postgres or memory storage. Used to see the screens and to photograph them.",
+  "description": "Tasklane, the example todo app, as a Nuxt app: tunables' screens over oRPC for staff, a workspace owner and a member, with Postgres or memory storage. Used to see the screens and to photograph them.",
   "scripts": {
     "dev": "nuxt dev --host 0.0.0.0",
     "build": "nuxt build",

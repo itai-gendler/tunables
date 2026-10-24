@@ -1,7 +1,7 @@
 import { RPCHandler } from '@orpc/server/fetch'
 import { tunablesRouter } from 'tunables/orpc'
 
-/** The app's oRPC router, with tunables nested in it as news nests its own procedures. */
+/** The app's oRPC router, with tunables nested in it beside the app's own procedures. */
 let handler: RPCHandler<PlaygroundContext> | undefined
 
 export default defineEventHandler(async (event) => {

@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url'
 const source = (path: string) => fileURLToPath(new URL(`../src/${path}`, import.meta.url))
 
 /**
- * The playground runs the news fixture through tunables' own layer, with the
+ * The playground runs Tasklane, the example todo app, through tunables' own layer, with the
  * package's subpaths pointed at their source so a change shows without a build.
  */
 export default defineNuxtConfig({

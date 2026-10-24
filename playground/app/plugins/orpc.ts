@@ -3,7 +3,7 @@ import { RPCLink } from '@orpc/client/fetch'
 import { orpcClient } from 'tunables/client'
 import { TUNABLES_CLIENT } from 'tunables/vue'
 
-/** The screens call tunables through the app's own oRPC router, as news does. */
+/** The screens call tunables through the app's own oRPC router. */
 export default defineNuxtPlugin((nuxtApp) => {
   const url = import.meta.server ? useRequestURL().origin : window.location.origin
   const link = new RPCLink({ url: `${url}/rpc`, headers: () => import.meta.server ? useRequestHeaders(['cookie']) : {} })

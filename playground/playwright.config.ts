@@ -28,7 +28,7 @@ export default defineConfig({
   ],
   webServer: {
     command: `pnpm build && PORT=${port} HOST=127.0.0.1 node .output/server/index.mjs`,
-    url: `http://127.0.0.1:${port}/admin/feeds/settings`,
+    url: `http://127.0.0.1:${port}/admin/limits`,
     reuseExistingServer: !process.env.CI,
     timeout: 240_000,
     env: { PLAYGROUND_RESETTABLE: '1', NUXT_TELEMETRY_DISABLED: '1' }
