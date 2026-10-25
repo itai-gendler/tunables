@@ -72,7 +72,7 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
       <div class="flex items-center gap-1.5">
         <label :for="id" class="text-sm font-medium text-highlighted">{{ field.label }}</label>
         <TunablesFieldHint :label="field.label" :help="field.help" :default-display="field.defaultDisplay" />
-        <span v-if="dirty" class="size-1.5 rounded-full bg-primary" aria-label="Unsaved change" />
+        <span v-if="dirty" class="size-1.5 rounded-full bg-primary" role="img" aria-label="Unsaved change" />
       </div>
       <TunablesEffects class="mt-1" :affects="field.affects" :effects="effects" :except="sharedEffects" />
       <p v-for="note in notes" :key="note" class="mt-1 text-xs text-muted">

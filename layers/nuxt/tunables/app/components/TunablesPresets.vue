@@ -74,9 +74,9 @@ async function remove() {
     </p>
 
     <div v-for="group in bySlot" :key="group.slot" class="mt-6">
-      <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
+      <component :is="bare ? 'h2' : 'h3'" class="text-xs font-semibold uppercase tracking-wide text-muted">
         {{ group.slot }}
-      </h3>
+      </component>
       <ul class="mt-2 divide-y divide-default rounded-md border border-default">
         <li v-for="preset in group.presets" :key="preset.key" class="flex flex-wrap items-center gap-3 px-4 py-3">
           <div class="min-w-0 flex-1">

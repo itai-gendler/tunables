@@ -63,6 +63,8 @@ function entriesFor(field: FieldDescription) {
 }
 const dirtyIn = (fields: FieldDescription[]) => fields.some(field => form.dirtyKeys.value.includes(field.key))
 const showHistory = ref(false)
+const mounted = ref(false)
+onMounted(() => { mounted.value = true })
 const confirmOpen = computed({ get: () => Boolean(form.confirm.value), set: (open) => { if (!open) form.cancelConfirm() } })
 const savedNotice = ref(false)
 
@@ -129,16 +131,16 @@ async function confirmAndSave() {
           <li v-for="section in sections" :key="section.anchor">
             <a :href="`#${section.anchor}`" class="flex items-center gap-2 rounded-md px-2 py-1 text-muted hover:bg-elevated hover:text-default">
               <span class="min-w-0">{{ section.name }}</span>
-              <span v-if="dirtyIn(section.fields)" class="size-1.5 shrink-0 rounded-full bg-primary" aria-label="Unsaved changes" />
+              <span v-if="dirtyIn(section.fields)" class="size-1.5 shrink-0 rounded-full bg-primary" role="img" aria-label="Unsaved changes" />
             </a>
           </li>
         </ul>
       </nav>
       <div class="min-w-0" :class="sections.length > 1 ? '' : 'lg:col-span-2'">
         <section v-for="section in sections" :id="section.anchor" :key="section.anchor" class="scroll-mt-4 pt-4">
-          <h3 v-if="sections.length > 1" class="text-xs font-semibold uppercase tracking-wide text-muted">
+          <component :is="bare ? 'h2' : 'h3'" v-if="sections.length > 1" class="text-xs font-semibold uppercase tracking-wide text-muted">
             {{ section.name }}
-          </h3>
+          </component>
           <TunablesEffects v-if="section.shared.length" class="mt-1" :affects="section.shared" :effects="description?.effects" />
           <div class="divide-y divide-default">
             <TunablesField
@@ -164,7 +166,8 @@ async function confirmAndSave() {
       </div>
     </div>
 
-    <Teleport :to="footer" :disabled="!footer" defer>
+    <!-- Moved into the page's footer only once mounted: server rendering keeps it in place, so hydration matches. -->
+    <Teleport :to="mounted && footer ? footer : undefined" :disabled="!mounted || !footer" defer>
     <div
       v-if="form.dirty.value || savedNotice"
       class="flex flex-wrap items-center gap-3"

@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A range or size stored in Postgres no longer reads as changed from its default.
 - A history lists its changes newest first past ten of them on Postgres.
 - `tunables check` reads a stated default of "1 day" as the "24 hours" a setting declares.
+- A `bare` group form or preset list heads its sections one level below the page's own title.
+- The unsaved-change marks are announced as images, which their label needs.
+- A history can be scrolled from the keyboard when none of its revisions offers a Restore.
+- A group form whose save bar sits in a page's footer hydrates without a mismatch.
 
 ## [0.2.0] - 2026-10-24
 

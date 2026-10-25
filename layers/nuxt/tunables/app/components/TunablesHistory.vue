@@ -59,7 +59,8 @@ async function restore(confirmed = false) {
     <p v-else-if="!history.loading.value && !history.revisions.value.length" class="text-sm text-muted">
       Nothing has changed yet.
     </p>
-    <ol class="divide-y divide-default">
+    <!-- Focusable, so the list can be scrolled from the keyboard even when no revision offers a Restore. -->
+    <ol class="divide-y divide-default focus-visible:outline-2 focus-visible:outline-primary" tabindex="0" aria-label="Changes, newest first">
       <li v-for="(revision, index) in history.revisions.value" :key="revision.id" class="py-3">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <p class="text-sm">
