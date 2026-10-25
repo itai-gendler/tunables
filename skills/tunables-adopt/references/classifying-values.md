@@ -127,7 +127,9 @@ differ, ask which is the default; the other is moved across as a stored value
 For each setting, ask what breaks if it is lowered:
 
 - another setting in its group → a `rules` check;
-- presets that must stay within it → the preset set's `within`;
+- a preset field that must stay at or below it → `atMost: 'group.key'` on that
+  field, which also shows the limit beside the field; any other bound on
+  presets → the preset set's `within`;
 - data the app keeps per row that must stay within it (a recurring task's
   repeat under the Longest repeat) → a guard, and `within(tx).hold()` on the
   write that saves such a row;

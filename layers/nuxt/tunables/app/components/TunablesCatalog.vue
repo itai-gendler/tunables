@@ -4,7 +4,8 @@ import { displayValue, useCatalog, useTunablesDescription, type CatalogEntrySumm
 /**
  * A catalog of allowed choices, such as permitted models: add and edit
  * entries, and retire or reinstate them. Entries are never deleted, and one in
- * use cannot be retired.
+ * use cannot be retired. Each row lists the entry's values; the `summary`
+ * slot, given `{ entry }`, says it the app's own way instead.
  */
 /** `bare` leaves the title and description to the page around it; `size` sets its form controls' size. */
 const props = defineProps<{ catalog: string, bare?: boolean, size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }>()
@@ -12,7 +13,7 @@ const { description } = useTunablesDescription()
 const catalog = useCatalog(toRef(props, 'catalog'))
 const definition = computed(() => description.value?.catalogs.find(item => item.id === props.catalog))
 const nameOf = (entry: CatalogEntrySummary) => definition.value?.labelField ? String(entry.values[definition.value.labelField] ?? entry.id) : entry.id
-const summaryFields = computed(() => (definition.value?.fields ?? []).filter(field => field.key !== definition.value?.labelField && field.kind !== 'text').slice(0, 3))
+const summaryFields = computed(() => (definition.value?.fields ?? []).filter(field => field.key !== definition.value?.labelField && field.kind !== 'text'))
 
 const editing = ref<CatalogEntrySummary | 'new'>()
 const entryId = ref('')
@@ -84,11 +85,13 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
             {{ nameOf(entry) }}
             <UBadge v-if="entry.state === 'retired'" class="ml-2" size="sm" color="neutral" variant="subtle" label="Retired" />
           </p>
-          <p class="text-xs text-muted">
-            {{ entry.id }}<template v-for="field in summaryFields" :key="field.key">
-              · {{ field.label }} {{ displayValue(field, entry.values[field.key]) }}
-            </template>
-          </p>
+          <slot name="summary" :entry="entry">
+            <p class="text-xs text-muted">
+              {{ entry.id }}<template v-for="field in summaryFields" :key="field.key">
+                · {{ field.label }} {{ displayValue(field, entry.values[field.key]) }}
+              </template>
+            </p>
+          </slot>
           <p v-if="entry.usedBy.length" class="mt-0.5 text-xs text-muted">
             Used by {{ entry.usedBy.join(', ') }}
           </p>
@@ -131,7 +134,7 @@ const general = computed(() => problems.value.filter(problem => !problem.key || 
               :field="field"
               :effects="description?.effects"
               :problems="problemsFor(field.key)"
-              @reset="values[field.key] = JSON.parse(JSON.stringify(field.default))"
+              hide-default
             />
           </div>
           <div class="flex flex-wrap items-center justify-end gap-2 border-t border-default pt-4">

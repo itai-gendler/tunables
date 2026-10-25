@@ -4,6 +4,8 @@ import { usePresets, useTunablesDescription, type PresetSummary, type Problem } 
 /**
  * A preset set, such as Run Configs: each slot's presets with its default and
  * how many follow each, and creating, editing, defaulting and removing them.
+ * The `summary` slot, given `{ preset }`, adds what an app wants each row to
+ * say about the preset's values, such as its schedule and what it may spend.
  */
 /** `bare` leaves the title and description to the page around it; `size` sets its form controls' size. */
 const props = defineProps<{ set: string, bare?: boolean, size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }>()
@@ -22,6 +24,8 @@ const historyFor = ref<PresetSummary>()
 const historyOpen = computed({ get: () => Boolean(historyFor.value), set: (open) => { if (!open) historyFor.value = undefined } })
 
 const followers = (preset: PresetSummary) => `${preset.key} · ${preset.assigned} assigned${preset.isDefault ? ', and everyone who follows the default' : ''}`
+/** Each slot's default's values: a new preset starts from its slot's. */
+const startFrom = computed(() => Object.fromEntries(presets.presets.value.filter(preset => preset.isDefault).map(preset => [preset.slot, preset.values])))
 const bySlot = computed(() => (definition.value?.slots ?? []).map(slot => ({ slot, presets: presets.presets.value.filter(preset => preset.slot === slot) })))
 
 function open(preset: PresetSummary | 'new') {
@@ -87,6 +91,7 @@ async function remove() {
             <p class="text-xs text-muted">
               {{ followers(preset) }}
             </p>
+            <slot name="summary" :preset="preset" />
           </div>
           <UButton size="sm" color="neutral" variant="outline" label="Edit" @click="open(preset)" />
           <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-history" :aria-label="`${preset.label} history`" @click="historyFor = preset" />
@@ -104,6 +109,7 @@ async function remove() {
           :key="editing === 'new' ? 'new' : editing.key"
           :set="definition"
           :preset="editing === 'new' ? undefined : editing"
+          :start-from="startFrom"
           :saving="saving"
           :problems="problems"
           @save="save"

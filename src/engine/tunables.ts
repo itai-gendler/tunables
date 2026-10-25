@@ -17,7 +17,7 @@ import {
 } from '../model/definitions.js'
 import type { Explanations } from '../model/explanations.js'
 import { BUILT_IN_UNITS, type Unit } from '../model/units.js'
-import { describe, type Description } from './describe.js'
+import { describe, splitBound, type Description } from './describe.js'
 import type { Change, Revision, RevisionTarget, StoreSession, StoredGroup, StoredRecord, TunablesStore } from './store.js'
 import { defaultScopeLabel, overrideRule, overrideRules, parseScopeKey, pathOf, scopeEntries, scopeKey, type OverrideRule, type ScopeEntries, type ScopePath } from './scopes.js'
 
@@ -216,6 +216,12 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
     }
     for (const set of presetSets.values()) {
       if (set.slots.length === 0) throw new TunablesError(`${set.id} has no slots.`)
+      for (const [key, field] of Object.entries(set.fields)) {
+        if (field.kind !== 'number' || !field.atMost) continue
+        const [groupId, limit] = splitBound(field.atMost)
+        const limitField = groups.get(groupId)?.fields[limit]
+        if (limitField?.kind !== 'number') throw new TunablesError(`${set.id}.${key} is at most "${field.atMost}", which is not a number setting.`)
+      }
       if (!set.layer) continue
       const group = groups.get(set.layer.group)
       if (!group) throw new TunablesError(`${set.id} is a layer of "${set.layer.group}", which is not a group.`)
@@ -528,14 +534,34 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
     return problems
   }
 
+  /** A preset's fields above the settings they are held at or below. */
+  function boundProblems(set: AnyPresets, values: Record<string, unknown>, view: SettingsView): Problem[] {
+    const problems: Problem[] = []
+    for (const [key, field] of Object.entries(set.fields)) {
+      if (field.kind !== 'number' || !field.atMost) continue
+      const [groupId, limitKey] = splitBound(field.atMost)
+      const limitField = groups.get(groupId)!.fields[limitKey]!
+      const value = values[key]
+      const limit = view.get(groupId)[limitKey]
+      if (typeof value === 'number' && typeof limit === 'number' && value > limit) {
+        problems.push({ key, message: `${fieldLabel(key, field)} may not exceed the ${fieldLabel(limitKey, limitField)}, ${formatValue(limitField, limit, unitOf)}.` })
+      }
+    }
+    return problems
+  }
+
+  /** Everything a preset must hold against the settings: its bounds, then the set's own check. */
+  const outsideSettings = (set: AnyPresets, values: Record<string, unknown>, view: SettingsView): Problem[] =>
+    [...boundProblems(set, values, view), ...(set.within ? toProblems(set.within(values as never, view)) : [])]
+
   /** Presets that would fall outside the settings, named. */
   async function presetsOutside(session: StoreSession, view: SettingsView): Promise<Problem[]> {
     const problems: Problem[] = []
     for (const set of presetSets.values()) {
-      if (!set.within) continue
       for (const preset of await listPresets(session, set.id)) {
         const values = { ...defaultsOf(set.fields), ...preset.values }
-        problems.push(...prefixed(`${set.singular} "${preset.label}"`, toProblems(set.within(values as never, view))))
+        const named = prefixed(`${set.singular} "${preset.label}"`, outsideSettings(set, values, view))
+        problems.push(...named.map(problem => ({ ...problem, preset: { set: set.id, key: preset.key, label: preset.label } })))
       }
     }
     return problems
@@ -903,7 +929,7 @@ export function createTunables<const G extends readonly AnyGroup[]>(options: Tun
         if (problems.length) return problems
         const catalogsNow = await catalogView(session)
         problems.push(...toProblems(set.rules?.(values as never, catalogsNow)))
-        if (set.within) problems.push(...toProblems(set.within(values as never, await settingsView(session))))
+        problems.push(...outsideSettings(set, values, await settingsView(session)))
         return problems
       }
 

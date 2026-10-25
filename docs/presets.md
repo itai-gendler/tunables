@@ -61,7 +61,7 @@ createTunables({ store, groups, presets: [plans], catalogs: [models] })
 | `slots` | What a preset fills. Each slot has exactly one default. |
 | `fields` | Each preset's fields, declared like a group's. |
 | `rules` | Checks between one preset's fields, or against a catalog entry it picks. |
-| `within` | How the settings bound a preset. |
+| `within` | How the settings bound a preset. A field held below one setting can say so itself with `atMost`. |
 | `layer` | Makes the set a layer of a group at a scope, so a workspace reads its plan's values. See [Plans as a layer](#plans-as-a-layer). |
 | `seed` | The presets `sync` creates for a slot that has no default. |
 
@@ -82,7 +82,25 @@ runs in two places:
   ```
 
 To lower the limit, first edit or remove the preset in the way. A limit never
-drops below what uses it.
+drops below what uses it. The screens say so above the problems.
+
+### A field held below one setting
+
+Most bounds are one field held at or below one setting. Say that on the field,
+and tunables checks it in both places, words the problem and shows the current
+limit beside the field in the editor:
+
+```ts
+maxProjects: number({ label: 'Projects', unit: 'count', default: 3, atMost: 'ceilings.projectCeiling' })
+```
+
+```
+Plan "Team": Projects may not exceed the Project ceiling, 400.
+```
+
+`atMost` names a number setting as `'group.key'`; anything else is refused
+when tunables is created. Keep `within` for bounds that are not one field
+against one setting.
 
 ## Rules and catalogs
 

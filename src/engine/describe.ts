@@ -32,6 +32,8 @@ export interface FieldDescription {
   optional?: boolean
   multiline?: boolean
   catalog?: string
+  /** The setting a preset field may not exceed, and its name. */
+  atMost?: { group: string, key: string, label: string }
   default: unknown
   defaultDisplay: string
   /** Where the field may take its own value, and how: `{ workspace: 'at-most', user: 'free' }`. */
@@ -51,6 +53,8 @@ interface Described {
 
 export interface GroupDescription extends Described {
   type: 'group'
+  /** What a saved change does next. */
+  afterSave?: string
 }
 
 export interface PresetsDescription extends Described {
@@ -77,7 +81,7 @@ export interface Description {
   effects: Record<string, { label: string, warn: boolean, icon?: string }>
 }
 
-export function describeFields(fields: Fields, entity: string | undefined, explanations: Explanations | undefined, unitOf: (id: string) => Unit | undefined): FieldDescription[] {
+export function describeFields(fields: Fields, entity: string | undefined, explanations: Explanations | undefined, unitOf: (id: string) => Unit | undefined, groups: readonly AnyGroup[] = []): FieldDescription[] {
   return Object.entries(fields).map(([key, field]) => {
     const described: FieldDescription = {
       key,
@@ -110,6 +114,11 @@ export function describeFields(fields: Fields, entity: string | undefined, expla
       described.multiline = field.multiline ?? false
     }
     if (field.kind === 'pick') described.catalog = field.catalog
+    if (field.kind === 'number' && field.atMost) {
+      const [group, limit] = splitBound(field.atMost)
+      const limitField = groups.find(item => item.id === group)?.fields[limit]
+      described.atMost = { group, key: limit, label: limitField ? fieldLabel(limit, limitField) : limit }
+    }
     return described
   })
 }
@@ -125,10 +134,10 @@ export function describe(
     scopes: [...(definitions.scopes ?? [])],
     groups: definitions.groups.map((group) => {
       const fields = describeFields(group.fields, group.entity, explanations, unitOf)
-      return { type: 'group', id: group.id, title: group.title, description: group.description, entity: group.entity, place: group.place, sections: sectionsOf(fields), fields }
+      return { type: 'group', id: group.id, title: group.title, description: group.description, entity: group.entity, place: group.place, afterSave: group.afterSave, sections: sectionsOf(fields), fields }
     }),
     presets: definitions.presets.map((set) => {
-      const fields = describeFields(set.fields, set.entity, explanations, unitOf)
+      const fields = describeFields(set.fields, set.entity, explanations, unitOf, definitions.groups)
       const layer = set.layer ? { group: set.layer.group, scope: set.layer.scope, slot: set.layer.slot ?? set.slots[0]! } : undefined
       return { type: 'presets', id: set.id, title: set.title, singular: set.singular, description: set.description, entity: set.entity, place: set.place, slots: [...set.slots], layer, sections: sectionsOf(fields), fields }
     }),
@@ -138,4 +147,10 @@ export function describe(
     }),
     effects: Object.fromEntries(Object.entries(definitions.effects).map(([id, effect]) => [id, { label: effect.label, warn: Boolean(effect.warn), icon: effect.icon }]))
   }
+}
+
+/** `'run.budgetLimit'` as its group and its key. */
+export function splitBound(bound: string): [string, string] {
+  const dot = bound.indexOf('.')
+  return [bound.slice(0, dot), bound.slice(dot + 1)]
 }

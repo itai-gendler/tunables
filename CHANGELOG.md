@@ -12,10 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Deployment values can be optional, secret or carry a local example, and `.env.example` wraps their descriptions at 80 columns.
 - The screens fit an app's own pages: `bare` leaves the title to the page, the group form's unsaved-changes bar can sit in a page's footer, `size` sets the size of every control, and every field and section has an address to link to.
 - A section states once the effects all its settings share.
+- `atMost: 'group.key'` holds a preset's number field at or below a setting: checked when the preset is saved and when the setting is lowered, worded by tunables, and shown beside the field in the editor.
+- A refused change names the preset in its way, and the group form says to lower it first.
+- A group's `afterSave` says what a saved change does next, beside *Saved*.
+- `TunablesPresets` and `TunablesCatalog` take a `summary` slot for each row; a catalog row lists all its values by default.
+- A subject's assignments read in `TunablesHistory` as the preset each slot runs as.
 
 ### Changed
 
 - `TunablesAssign` takes `for-slot` instead of `slot`, which Vue reserves.
+- A new preset starts as a copy of its slot's default. A preset's or catalog entry's fields no longer show a default or a reset: a named record has none of its own.
 
 ### Fixed
 
@@ -24,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `tunables check` reads a stated default of "1 day" as the "24 hours" a setting declares.
 - A `bare` group form or preset list heads its sections one level below the page's own title.
 - The unsaved-change marks are announced as images, which their label needs.
+- The save bar keeps its padding in a page's footer, and the restore dialog says whose change it puts back plainly.
 - A history can be scrolled from the keyboard when none of its revisions offers a Restore.
 - A group form whose save bar sits in a page's footer hydrates without a mismatch.
 

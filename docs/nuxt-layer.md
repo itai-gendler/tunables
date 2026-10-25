@@ -130,6 +130,22 @@ the same checks as a save. It emits `restored`.
 A preset set by slot: each preset, which is the default, how many subjects are
 assigned it, and its history; create, edit, make default and remove.
 
+A preset is a named whole, so its editor shows no per-field default and no
+reset. A new preset starts as a copy of its slot's default, and starts again
+from the other slot's default if the slot is changed before anything else. A
+field held below a setting with `atMost` shows that setting's current value
+beside it.
+
+Say what each row should tell about a preset's values with the `summary` slot:
+
+```vue
+<TunablesPresets set="plans">
+  <template #summary="{ preset }">
+    <p class="text-sm">{{ preset.values.maxProjects }} projects</p>
+  </template>
+</TunablesPresets>
+```
+
 `TunablesAssign` goes where your app shows a subject, such as a workspace's
 row in the admin's list of workspaces:
 
@@ -138,7 +154,9 @@ row in the admin's list of workspaces:
 ```
 
 It offers *Follow the default* and every preset in the slot, and emits
-`changed` with the key chosen, or `null` for the default.
+`changed` with the key chosen, or `null` for the default. Each assignment is a
+revision of that subject; show them with
+`<TunablesHistory :target="{ kind: 'assignment', name: 'plans', id: workspace.id }" />`.
 
 ### TunablesCatalog
 
@@ -148,8 +166,9 @@ It offers *Follow the default* and every preset in the slot, and emits
 </template>
 ```
 
-Every entry with its state and what uses it; add, edit, retire and reinstate.
-An entry in use cannot be retired, and the screen says by what.
+Every entry with its state, its values and what uses it; add, edit, retire and
+reinstate. An entry in use cannot be retired, and the screen says by what. The
+`summary` slot, given `{ entry }`, replaces the line of values with your own.
 
 ## Another client
 

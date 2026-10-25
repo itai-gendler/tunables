@@ -67,6 +67,7 @@ A group says:
 | `entity` | The pdd-kit Product Model Entity its fields are facts of. See [Explanations](#explanations). |
 | `rules` | Checks between its own fields. See [Checks and guards](./checks-and-guards.md). |
 | `confirm` | A question to answer before a costly change is saved. |
+| `afterSave` | What a saved change does next, said beside *Saved*: "The worker reads them at its next check, without a restart." |
 
 ## What a field says
 

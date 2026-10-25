@@ -67,12 +67,19 @@ const mounted = ref(false)
 onMounted(() => { mounted.value = true })
 const confirmOpen = computed({ get: () => Boolean(form.confirm.value), set: (open) => { if (!open) form.cancelConfirm() } })
 const savedNotice = ref(false)
+/** When presets stand in the way of the change, what to do about them. */
+const blockers = computed(() => {
+  const sets = [...new Set(form.generalProblems.value.map(problem => problem.preset?.set).filter((set): set is string => Boolean(set)))]
+  if (!sets.length) return undefined
+  const titles = sets.map(set => description.value?.presets.find(item => item.id === set)?.title ?? set)
+  return `Lower these ${titles.join(' and ')} first, or keep the current value.`
+})
 
 async function save() {
   const saved = await form.save()
   if (saved) {
     savedNotice.value = true
-    setTimeout(() => { savedNotice.value = false }, 2500)
+    setTimeout(() => { savedNotice.value = false }, form.group.value?.afterSave ? 6000 : 2500)
   }
 }
 async function confirmAndSave() {
@@ -113,6 +120,9 @@ async function confirmAndSave() {
       title="Not saved"
     >
       <template #description>
+        <p v-if="blockers" class="mb-1.5">
+          {{ blockers }}
+        </p>
         <ul class="list-disc space-y-1 pl-4">
           <li v-for="problem in form.generalProblems.value" :key="problem.message">
             {{ problem.message }}
@@ -171,7 +181,7 @@ async function confirmAndSave() {
     <div
       v-if="form.dirty.value || savedNotice"
       class="flex flex-wrap items-center gap-3"
-      :class="footer ? '' : 'sticky bottom-0 z-10 -mx-1 mt-6 border-t border-default bg-default/95 px-1 py-3 backdrop-blur'"
+      :class="footer ? 'w-full border-t border-default px-4 py-3 sm:px-6' : 'sticky bottom-0 z-10 -mx-1 mt-6 border-t border-default bg-default/95 px-1 py-3 backdrop-blur'"
       role="region"
       aria-label="Unsaved changes"
     >
@@ -184,7 +194,7 @@ async function confirmAndSave() {
         <UButton label="Save" icon="i-lucide-check" :loading="form.saving.value" :size="size" @click="save" />
       </template>
       <span v-else class="inline-flex items-center gap-2 text-sm text-success" role="status">
-        <UIcon name="i-lucide-circle-check" /> Saved
+        <UIcon name="i-lucide-circle-check" /> Saved.<span v-if="form.group.value?.afterSave" class="text-muted">{{ form.group.value.afterSave }}</span>
       </span>
     </div>
     </Teleport>

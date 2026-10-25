@@ -26,6 +26,13 @@ const props = defineProps<{
   sharedEffects?: string[]
   /** The size of its controls, such as `md` in an administration form. */
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * A named record's field, such as a preset's or a catalog entry's: it has no
+   * default of its own to show or go back to.
+   */
+  hideDefault?: boolean
+  /** The most it may be, in words: "At most 744 hours". */
+  limit?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: unknown], 'reset': [], 'inherit': [] }>()
 
@@ -71,7 +78,7 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
     <div class="min-w-0">
       <div class="flex items-center gap-1.5">
         <label :for="id" class="text-sm font-medium text-highlighted">{{ field.label }}</label>
-        <TunablesFieldHint :label="field.label" :help="field.help" :default-display="field.defaultDisplay" />
+        <TunablesFieldHint :label="field.label" :help="field.help" :default-display="hideDefault ? undefined : field.defaultDisplay" />
         <span v-if="dirty" class="size-1.5 rounded-full bg-primary" role="img" aria-label="Unsaved change" />
       </div>
       <TunablesEffects class="mt-1" :affects="field.affects" :effects="effects" :except="sharedEffects" />
@@ -143,7 +150,11 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
           @click="emit('inherit')"
         />
       </div>
-      <div v-else class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+      <p v-else-if="hideDefault && limit" class="mt-1.5 text-xs text-muted" data-tunables-limit>
+        {{ limit }}
+      </p>
+      <div v-else-if="!hideDefault" class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+        <span v-if="limit">{{ limit }}</span>
         <span>Default: {{ emptyDefault ? 'none' : field.defaultDisplay }}</span>
         <UButton
           v-if="!isDefault && !disabled"

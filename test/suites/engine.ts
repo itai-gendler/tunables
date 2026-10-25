@@ -188,7 +188,7 @@ describe('saving', () => {
 
   it('refuses lowering a limit below a Run Config, naming it', async () => {
     const outcome = await tunables.save('run', { screeningBudgetLimitUsd: 0.2 })
-    expect(outcome.problems).toEqual([{ message: 'Run Config "Weekly brief": its Screening budget, $0.30, is above the Screening budget limit of $0.20.' }])
+    expect(outcome.problems).toEqual([{ message: 'Run Config "Weekly brief": its Screening budget, $0.30, is above the Screening budget limit of $0.20.', preset: { set: 'run-configs', key: 'weekly', label: 'Weekly brief' } }])
     expect((await tunables.save('run', { screeningBudgetLimitUsd: 0.3 })).saved).toBe(true)
   })
 

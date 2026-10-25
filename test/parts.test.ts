@@ -5,8 +5,10 @@ import {
   createTunables,
   defineEnvironment,
   defineGroup,
+  definePresets,
   env,
   memoryStore,
+  number,
   pick,
   renderEnvExample
 } from '../src/index.js'
@@ -94,6 +96,36 @@ DATABASE_URL=
 # One of: info, warn.
 # LEVEL=info
 `)
+  })
+})
+
+describe('a preset field held at or below a setting', () => {
+  const limits = defineGroup({ id: 'limits', title: 'Limits', fields: { budgetLimit: number({ label: 'Budget limit', unit: 'dollars', integer: false, default: 25 }) } })
+  const plans = definePresets({
+    id: 'plans',
+    title: 'Plans',
+    singular: 'Plan',
+    slots: ['monthly'],
+    fields: { budget: number({ label: 'Budget', unit: 'dollars', integer: false, default: 10, atMost: 'limits.budgetLimit' }) },
+    seed: [{ key: 'basic', slot: 'monthly', label: 'Basic', values: { budget: 20 } }]
+  })
+  const make = () => createTunables({ store: memoryStore(), groups: [limits], presets: [plans] })
+
+  it('refuses a preset above it, and a setting lowered below a preset, naming the preset', async () => {
+    const tunables = make()
+    await tunables.sync({ actor: 'test' })
+    expect((await tunables.presets('plans').create({ key: 'big', slot: 'monthly', label: 'Big', values: { budget: 30 } })).problems)
+      .toEqual([{ key: 'budget', message: 'Budget may not exceed the Budget limit, $25.' }])
+    const lowered = await tunables.save('limits', { budgetLimit: 15 })
+    expect(lowered.saved).toBe(false)
+    expect(lowered.problems).toEqual([{ message: 'Plan "Basic": Budget may not exceed the Budget limit, $15.', preset: { set: 'plans', key: 'basic', label: 'Basic' } }])
+    expect((await tunables.save('limits', { budgetLimit: 20 })).saved).toBe(true)
+  })
+
+  it('describes the setting it is held below, and refuses one that is not a number setting', () => {
+    expect(make().describe().presets[0]!.fields[0]!.atMost).toEqual({ group: 'limits', key: 'budgetLimit', label: 'Budget limit' })
+    const loose = definePresets({ id: 'plans', title: 'Plans', singular: 'Plan', slots: ['monthly'], fields: { budget: number({ unit: 'dollars', default: 1, atMost: 'limits.nothing' }) } })
+    expect(() => createTunables({ store: memoryStore(), groups: [limits], presets: [loose] })).toThrow(/not a number setting/)
   })
 })
 

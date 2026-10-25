@@ -8,7 +8,8 @@ depends on the value.
 | --- | --- | --- |
 | Another setting in the same group | `rules` | the group |
 | Fields of one preset, or a catalog entry it picks | `rules` | the preset set |
-| Presets, bounded by settings | `within` | the preset set |
+| One preset field, at most one setting | `atMost: 'group.key'` | the field |
+| Presets, bounded by settings in any other way | `within` | the preset set |
 | A workspace's or person's own value, bounded by what it inherits | `override: { scope: 'at-most' }` | the field |
 | Rows the app keeps, bounded by a setting | a guard, and `hold` on the write | `guards` in `createTunables`; the app's write path |
 | Only new additions (a per-user count) | the check where things are added | the app's code |

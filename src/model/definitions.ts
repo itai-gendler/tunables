@@ -5,6 +5,8 @@ export interface Problem {
   /** The field the problem is about. Absent when it is about the whole change. */
   key?: string
   message: string
+  /** The preset that stands in the way, when a change would leave one outside the settings. */
+  preset?: { set: string, key: string, label: string }
 }
 
 /** A rule's answer: problems, or plain messages, or nothing. */
@@ -24,6 +26,8 @@ export interface GroupDefinition<Id extends string = string, F extends Fields = 
   entity?: string
   /** Where the group is edited in the host app, for links from All settings. */
   place?: { label: string, href: string }
+  /** What a saved change does next, said once it is saved: "The worker reads them at its next check, without a restart." */
+  afterSave?: string
   fields: F
   /** Settings in this group that bound one another, checked on every save. */
   rules?(values: ValuesOf<F>): RuleResult
