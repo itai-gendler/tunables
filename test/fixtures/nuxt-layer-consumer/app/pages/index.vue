@@ -10,7 +10,7 @@ const dirty: boolean = form.dirty.value
     <TunablesGroupForm group="run" />
     <TunablesOverview />
     <TunablesPresets set="run-configs" />
-    <TunablesAssign set="run-configs" subject="reader-1" slot="daily" />
+    <TunablesAssign set="run-configs" subject="reader-1" for-slot="daily" />
     <TunablesCatalog catalog="models" />
     <TunablesHistory :target="{ kind: 'group', name: 'run' }" />
     <p v-if="dirty">

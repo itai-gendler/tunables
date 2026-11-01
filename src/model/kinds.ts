@@ -40,6 +40,12 @@ export interface NumberField extends FieldInfo {
   /** Inclusive bounds beyond the unit's own. */
   min?: number
   max?: number
+  /**
+   * A preset field held at or below a setting, as `'group.key'`: a Run Config's
+   * Budget at most the Budget limit. Shown beside the field and checked when the
+   * preset is saved and when the setting is lowered.
+   */
+  atMost?: string
   default: number
 }
 
@@ -123,7 +129,7 @@ const toChoices = (options: readonly (string | Choice)[]): Choice[] =>
 
 /* --------------------------------------------------------------- builders */
 
-export function number(options: Info & { unit: string, default: number, integer?: boolean, min?: number, max?: number }): NumberField {
+export function number(options: Info & { unit: string, default: number, integer?: boolean, min?: number, max?: number, atMost?: string }): NumberField {
   return { kind: 'number', ...options }
 }
 

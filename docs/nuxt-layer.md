@@ -35,13 +35,21 @@ with your own route middleware, and the API with `authorize`.
 
 | Component | Props | Shows |
 | --- | --- | --- |
-| `TunablesGroupForm` | `group`, `scope?`, `history?` | One group's form, for the system or one scope |
+| `TunablesGroupForm` | `group`, `scope?`, `history?`, `bare?`, `footer?`, `size?` | One group's form, for the system or one scope |
 | `TunablesOverview` | none | All settings, read-only |
 | `TunablesHistory` | `target` | A target's revisions, with restore for groups |
-| `TunablesPresets` | `set` | A preset set, by slot |
-| `TunablesAssign` | `set`, `subject`, `slot`, `label?` | The preset one subject follows for one slot |
-| `TunablesCatalog` | `catalog` | A catalog's entries |
+| `TunablesPresets` | `set`, `bare?`, `size?` | A preset set, by slot |
+| `TunablesAssign` | `set`, `subject`, `for-slot`, `label?` | The preset one subject follows for one slot |
+| `TunablesCatalog` | `catalog`, `bare?`, `size?` | A catalog's entries |
 | `TunablesFieldHint` | `label`, `help?`, `defaultDisplay?` | The question mark beside a label, for your own forms |
+
+`bare` leaves the title and description to the page around a screen, for an app
+whose own page header already says them. `footer` names an element, such as
+`#page-footer`, that the group form's unsaved-changes bar is placed in instead
+of sticking to the form's bottom. `size` sets the size of every control, such as
+`md` in an administration whose forms read larger than the rest of the app. Each
+field has an address, `#tunables-<key>`, and each section of a group
+`#tunables-<group>-<section>`, so a search or a link can open the page at it.
 
 ### TunablesGroupForm
 
@@ -122,15 +130,33 @@ the same checks as a save. It emits `restored`.
 A preset set by slot: each preset, which is the default, how many subjects are
 assigned it, and its history; create, edit, make default and remove.
 
+A preset is a named whole, so its editor shows no per-field default and no
+reset. A new preset starts as a copy of its slot's default, and starts again
+from the other slot's default if the slot is changed before anything else. A
+field held below a setting with `atMost` shows that setting's current value
+beside it.
+
+Say what each row should tell about a preset's values with the `summary` slot:
+
+```vue
+<TunablesPresets set="plans">
+  <template #summary="{ preset }">
+    <p class="text-sm">{{ preset.values.maxProjects }} projects</p>
+  </template>
+</TunablesPresets>
+```
+
 `TunablesAssign` goes where your app shows a subject, such as a workspace's
 row in the admin's list of workspaces:
 
 ```vue
-<TunablesAssign set="plans" :subject="workspace.id" slot="plan" label="Plan" />
+<TunablesAssign set="plans" :subject="workspace.id" for-slot="plan" label="Plan" />
 ```
 
 It offers *Follow the default* and every preset in the slot, and emits
-`changed` with the key chosen, or `null` for the default.
+`changed` with the key chosen, or `null` for the default. Each assignment is a
+revision of that subject; show them with
+`<TunablesHistory :target="{ kind: 'assignment', name: 'plans', id: workspace.id }" />`.
 
 ### TunablesCatalog
 
@@ -140,8 +166,9 @@ It offers *Follow the default* and every preset in the slot, and emits
 </template>
 ```
 
-Every entry with its state and what uses it; add, edit, retire and reinstate.
-An entry in use cannot be retired, and the screen says by what.
+Every entry with its state, its values and what uses it; add, edit, retire and
+reinstate. An entry in use cannot be retired, and the screen says by what. The
+`summary` slot, given `{ entry }`, replaces the line of values with your own.
 
 ## Another client
 

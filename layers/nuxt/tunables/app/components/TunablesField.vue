@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { displayValue, type Description, type FieldDescription, type FieldLayer } from 'tunables/vue'
+import { displayValue, sameValue, type Description, type FieldDescription, type FieldLayer } from 'tunables/vue'
 
 /**
  * One field: its label and explanation, the input its kind calls for, what it
@@ -22,12 +22,23 @@ const props = defineProps<{
   layer?: FieldLayer
   /** At a scope: the draft uses the inherited value again. */
   inheriting?: boolean
+  /** Effects its section already states once, left out here. */
+  sharedEffects?: string[]
+  /** The size of its controls, such as `md` in an administration form. */
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  /**
+   * A named record's field, such as a preset's or a catalog entry's: it has no
+   * default of its own to show or go back to.
+   */
+  hideDefault?: boolean
+  /** The most it may be, in words: "At most 744 hours". */
+  limit?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [value: unknown], 'reset': [], 'inherit': [] }>()
 
 /** At a scope, whether the value shown is this scope's own rather than inherited. */
 const ownHere = computed(() => Boolean(props.layer) && !props.inheriting
-  && (props.layer!.overridden || JSON.stringify(props.modelValue) !== JSON.stringify(props.layer!.inherited)))
+  && (props.layer!.overridden || !sameValue(props.modelValue, props.layer!.inherited)))
 const bound = computed(() => {
   if (props.layer?.rule === 'at-most') return `At most ${props.layer.inheritedDisplay}`
   if (props.layer?.rule === 'at-least') return `At least ${props.layer.inheritedDisplay}`
@@ -41,7 +52,7 @@ const value = computed<any>({
   get: () => props.modelValue,
   set: next => emit('update:modelValue', next)
 })
-const isDefault = computed(() => JSON.stringify(props.modelValue) === JSON.stringify(props.field.default))
+const isDefault = computed(() => sameValue(props.modelValue, props.field.default))
 const emptyDefault = computed(() => props.field.default === '' || (Array.isArray(props.field.default) && props.field.default.length === 0))
 const step = computed(() => props.field.integer === false ? 0.01 : 1)
 const unitLabel = computed(() => props.field.unit && !['dollars', 'hour', 'weekday', 'percent'].includes(props.field.unit.id) ? props.field.unit.label : '')
@@ -62,15 +73,15 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
 </script>
 
 <template>
-  <div class="@container" :data-field="field.key">
+  <div :id="`tunables-${field.key}`" class="@container scroll-mt-4" :data-field="field.key">
     <div class="grid gap-x-6 gap-y-2 py-4 @xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
     <div class="min-w-0">
       <div class="flex items-center gap-1.5">
         <label :for="id" class="text-sm font-medium text-highlighted">{{ field.label }}</label>
-        <TunablesFieldHint :label="field.label" :help="field.help" :default-display="field.defaultDisplay" />
-        <span v-if="dirty" class="size-1.5 rounded-full bg-primary" aria-label="Unsaved change" />
+        <TunablesFieldHint :label="field.label" :help="field.help" :default-display="hideDefault ? undefined : field.defaultDisplay" />
+        <span v-if="dirty" class="size-1.5 rounded-full bg-primary" role="img" aria-label="Unsaved change" />
       </div>
-      <TunablesEffects class="mt-1" :affects="field.affects" :effects="effects" />
+      <TunablesEffects class="mt-1" :affects="field.affects" :effects="effects" :except="sharedEffects" />
       <p v-for="note in notes" :key="note" class="mt-1 text-xs text-muted">
         {{ note }}
       </p>
@@ -79,48 +90,48 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
     <div class="min-w-0">
       <div class="flex flex-wrap items-center gap-2">
         <template v-if="field.kind === 'number' && field.unit?.id === 'hour'">
-          <USelect :id="id" v-model="value" :items="hours" class="w-32" :disabled="disabled" />
+          <USelect :id="id" v-model="value" :items="hours" class="w-32" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'number' && field.unit?.id === 'weekday'">
-          <USelect :id="id" v-model="value" :items="weekdays" class="w-40" :disabled="disabled" />
+          <USelect :id="id" v-model="value" :items="weekdays" class="w-40" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'number'">
           <span v-if="prefix" class="text-sm text-muted">{{ prefix }}</span>
-          <UInputNumber :id="id" v-model="value" :min="field.min" :max="field.max" :step="step" :step-snapping="false" allow-invalid class="w-40" :disabled="disabled" />
+          <UInputNumber :id="id" v-model="value" :min="field.min" :max="field.max" :step="step" :step-snapping="false" allow-invalid class="w-40" :disabled="disabled" :size="size" />
           <span v-if="unitLabel" class="text-sm text-muted">{{ unitLabel }}</span>
         </template>
         <template v-else-if="field.kind === 'range'">
-          <UInputNumber :id="id" :model-value="pair.min" :min="field.min" :max="field.max" :step="step" allow-invalid class="w-32" :aria-label="`${field.label}, shortest`" :disabled="disabled" @update:model-value="part('min', $event)" />
+          <UInputNumber :id="id" :model-value="pair.min" :min="field.min" :max="field.max" :step="step" allow-invalid class="w-32" :aria-label="`${field.label}, shortest`" :disabled="disabled" :size="size" @update:model-value="part('min', $event)" />
           <span class="text-sm text-muted">to</span>
-          <UInputNumber :model-value="pair.max" :min="field.min" :max="field.max" :step="step" allow-invalid class="w-32" :aria-label="`${field.label}, longest`" :disabled="disabled" @update:model-value="part('max', $event)" />
+          <UInputNumber :model-value="pair.max" :min="field.min" :max="field.max" :step="step" allow-invalid class="w-32" :aria-label="`${field.label}, longest`" :disabled="disabled" :size="size" @update:model-value="part('max', $event)" />
           <span v-if="unitLabel" class="text-sm text-muted">{{ unitLabel }}</span>
         </template>
         <template v-else-if="field.kind === 'size'">
-          <UInputNumber :id="id" :model-value="pair.width" :min="1" allow-invalid class="w-32" :aria-label="`${field.label}, width`" :disabled="disabled" @update:model-value="part('width', $event)" />
+          <UInputNumber :id="id" :model-value="pair.width" :min="1" allow-invalid class="w-32" :aria-label="`${field.label}, width`" :disabled="disabled" :size="size" @update:model-value="part('width', $event)" />
           <span class="text-sm text-muted">×</span>
-          <UInputNumber :model-value="pair.height" :min="1" allow-invalid class="w-32" :aria-label="`${field.label}, height`" :disabled="disabled" @update:model-value="part('height', $event)" />
+          <UInputNumber :model-value="pair.height" :min="1" allow-invalid class="w-32" :aria-label="`${field.label}, height`" :disabled="disabled" :size="size" @update:model-value="part('height', $event)" />
           <span class="text-sm text-muted">pixels</span>
         </template>
         <template v-else-if="field.kind === 'toggle'">
-          <USwitch :id="id" v-model="value" :label="value ? 'On' : 'Off'" :disabled="disabled" />
+          <USwitch :id="id" v-model="value" :label="value ? 'On' : 'Off'" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'choice' && options.length <= 3">
-          <URadioGroup :id="id" v-model="value" :items="options" orientation="horizontal" :disabled="disabled" />
+          <URadioGroup :id="id" v-model="value" :items="options" orientation="horizontal" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'choice'">
-          <USelect :id="id" v-model="value" :items="options" class="min-w-48" :disabled="disabled" />
+          <USelect :id="id" v-model="value" :items="options" class="min-w-48" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'choices'">
-          <UCheckboxGroup :id="id" v-model="value" :items="options" orientation="horizontal" :disabled="disabled" />
+          <UCheckboxGroup :id="id" v-model="value" :items="options" orientation="horizontal" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'text' && field.multiline">
-          <UTextarea :id="id" v-model="value" :maxlength="field.maxLength" :rows="3" autoresize class="w-full" :disabled="disabled" />
+          <UTextarea :id="id" v-model="value" :maxlength="field.maxLength" :rows="3" autoresize class="w-full" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'text'">
-          <UInput :id="id" v-model="value" :maxlength="field.maxLength" class="w-full max-w-md" :disabled="disabled" />
+          <UInput :id="id" v-model="value" :maxlength="field.maxLength" class="w-full max-w-md" :disabled="disabled" :size="size" />
         </template>
         <template v-else-if="field.kind === 'pick'">
-          <USelect :id="id" v-model="value" :items="pickItems" class="min-w-56" :disabled="disabled" />
+          <USelect :id="id" v-model="value" :items="pickItems" class="min-w-56" :disabled="disabled" :size="size" />
         </template>
       </div>
 
@@ -139,7 +150,11 @@ const pair = computed(() => (props.modelValue ?? {}) as Record<string, number>)
           @click="emit('inherit')"
         />
       </div>
-      <div v-else class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+      <p v-else-if="hideDefault && limit" class="mt-1.5 text-xs text-muted" data-tunables-limit>
+        {{ limit }}
+      </p>
+      <div v-else-if="!hideDefault" class="mt-1.5 flex flex-wrap items-center gap-x-3 text-xs text-muted">
+        <span v-if="limit">{{ limit }}</span>
         <span>Default: {{ emptyDefault ? 'none' : field.defaultDisplay }}</span>
         <UButton
           v-if="!isDefault && !disabled"

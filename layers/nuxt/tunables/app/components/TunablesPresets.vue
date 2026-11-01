@@ -4,8 +4,11 @@ import { usePresets, useTunablesDescription, type PresetSummary, type Problem } 
 /**
  * A preset set, such as Run Configs: each slot's presets with its default and
  * how many follow each, and creating, editing, defaulting and removing them.
+ * The `summary` slot, given `{ preset }`, adds what an app wants each row to
+ * say about the preset's values, such as its schedule and what it may spend.
  */
-const props = defineProps<{ set: string }>()
+/** `bare` leaves the title and description to the page around it; `size` sets its form controls' size. */
+const props = defineProps<{ set: string, bare?: boolean, size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' }>()
 const { description } = useTunablesDescription()
 const presets = usePresets(toRef(props, 'set'))
 const definition = computed(() => description.value?.presets.find(item => item.id === props.set))
@@ -21,6 +24,8 @@ const historyFor = ref<PresetSummary>()
 const historyOpen = computed({ get: () => Boolean(historyFor.value), set: (open) => { if (!open) historyFor.value = undefined } })
 
 const followers = (preset: PresetSummary) => `${preset.key} · ${preset.assigned} assigned${preset.isDefault ? ', and everyone who follows the default' : ''}`
+/** Each slot's default's values: a new preset starts from its slot's. */
+const startFrom = computed(() => Object.fromEntries(presets.presets.value.filter(preset => preset.isDefault).map(preset => [preset.slot, preset.values])))
 const bySlot = computed(() => (definition.value?.slots ?? []).map(slot => ({ slot, presets: presets.presets.value.filter(preset => preset.slot === slot) })))
 
 function open(preset: PresetSummary | 'new') {
@@ -56,8 +61,8 @@ async function remove() {
 
 <template>
   <section class="tunables-presets">
-    <header class="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-4">
-      <div>
+    <header class="flex flex-wrap items-start justify-between gap-3" :class="bare ? '' : 'border-b border-default pb-4'">
+      <div v-if="!bare">
         <h2 class="text-lg font-semibold text-highlighted">
           {{ definition?.title ?? set }}
         </h2>
@@ -65,7 +70,7 @@ async function remove() {
           {{ definition.description }}
         </p>
       </div>
-      <UButton v-if="definition" icon="i-lucide-plus" :label="`New ${definition.singular}`" @click="open('new')" />
+      <UButton v-if="definition" :class="bare ? 'ms-auto' : ''" icon="i-lucide-plus" :label="`New ${definition.singular}`" @click="open('new')" />
     </header>
     <UAlert v-if="presets.error.value" class="mt-4" color="error" variant="subtle" :title="presets.error.value" />
     <p v-if="notice" class="mt-3 text-sm text-muted" role="status">
@@ -73,9 +78,9 @@ async function remove() {
     </p>
 
     <div v-for="group in bySlot" :key="group.slot" class="mt-6">
-      <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
+      <component :is="bare ? 'h2' : 'h3'" class="text-xs font-semibold uppercase tracking-wide text-muted">
         {{ group.slot }}
-      </h3>
+      </component>
       <ul class="mt-2 divide-y divide-default rounded-md border border-default">
         <li v-for="preset in group.presets" :key="preset.key" class="flex flex-wrap items-center gap-3 px-4 py-3">
           <div class="min-w-0 flex-1">
@@ -86,6 +91,7 @@ async function remove() {
             <p class="text-xs text-muted">
               {{ followers(preset) }}
             </p>
+            <slot name="summary" :preset="preset" />
           </div>
           <UButton size="sm" color="neutral" variant="outline" label="Edit" @click="open(preset)" />
           <UButton size="sm" color="neutral" variant="ghost" icon="i-lucide-history" :aria-label="`${preset.label} history`" @click="historyFor = preset" />
@@ -98,10 +104,12 @@ async function remove() {
     <USlideover v-if="definition" v-model:open="editorOpen" :title="editing === 'new' ? `New ${definition.singular}` : `Edit ${(editing as PresetSummary | undefined)?.label ?? ''}`" :ui="{ content: 'sm:max-w-3xl' }">
       <template #body>
         <TunablesPresetEditor
+          :size="size"
           v-if="editing"
           :key="editing === 'new' ? 'new' : editing.key"
           :set="definition"
           :preset="editing === 'new' ? undefined : editing"
+          :start-from="startFrom"
           :saving="saving"
           :problems="problems"
           @save="save"

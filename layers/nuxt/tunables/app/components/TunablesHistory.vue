@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { displayValue, useHistory, useTunablesDescription, type FieldDescription, type Revision, type RevisionTarget } from 'tunables/vue'
+import { displayValue, useHistory, usePresets, useTunablesDescription, type FieldDescription, type Revision, type RevisionTarget } from 'tunables/vue'
 
 /**
  * A target's revisions, newest first: who changed what, from what to what, and
  * why. A settings group's earlier revision can be restored, checked like any
- * other save.
+ * other save. A subject's assignments read as the preset each slot runs as.
  */
 const props = defineProps<{ target: RevisionTarget }>()
 const emit = defineEmits<{ restored: [] }>()
@@ -18,7 +18,14 @@ const fields = computed<FieldDescription[]>(() => {
   if (props.target.kind === 'catalog') return d.catalogs.find(catalog => catalog.id === props.target.name)?.fields ?? []
   return d.presets.find(set => set.id === props.target.name)?.fields ?? []
 })
+// An assignment's change is a slot, from one preset (or the default) to another.
+const assignedSet = computed(() => props.target.kind === 'assignment' ? props.target.name : undefined)
+const presets = assignedSet.value ? usePresets(assignedSet.value) : undefined
+const presetLabel = (key: unknown) => key === null || key === undefined
+  ? 'Follows the default'
+  : presets?.presets.value.find(preset => preset.key === key)?.label ?? String(key)
 function describeChange(key: string, from: unknown, to: unknown) {
+  if (assignedSet.value) return { label: key.charAt(0).toUpperCase() + key.slice(1), from: presetLabel(from), to: presetLabel(to) }
   const field = fields.value.find(item => item.key === key)
   if (!field) return { label: key, from: from === null ? '—' : String(from), to: to === null ? '—' : String(to) }
   return { label: field.label, from: displayValue(field, from), to: displayValue(field, to) }
@@ -59,7 +66,8 @@ async function restore(confirmed = false) {
     <p v-else-if="!history.loading.value && !history.revisions.value.length" class="text-sm text-muted">
       Nothing has changed yet.
     </p>
-    <ol class="divide-y divide-default">
+    <!-- Focusable, so the list can be scrolled from the keyboard even when no revision offers a Restore. -->
+    <ol class="divide-y divide-default focus-visible:outline-2 focus-visible:outline-primary" tabindex="0" aria-label="Changes, newest first">
       <li v-for="(revision, index) in history.revisions.value" :key="revision.id" class="py-3">
         <div class="flex flex-wrap items-baseline justify-between gap-2">
           <p class="text-sm">
@@ -91,7 +99,7 @@ async function restore(confirmed = false) {
     </ol>
     <UButton v-if="history.more.value" class="mt-2" color="neutral" variant="ghost" label="Show older changes" :loading="history.loading.value" @click="history.loadMore()" />
 
-    <UModal v-model:open="open" title="Restore this revision" :description="restoring ? `Put the settings back as they were after ${restoring.actor ?? 'this'} change on ${tunablesTime(restoring.at)}. It is checked like any other save.` : undefined">
+    <UModal v-model:open="open" title="Restore this revision" :description="restoring ? `Put the settings back as they were after the change on ${tunablesTime(restoring.at)}${restoring.actor ? ` by ${restoring.actor}` : ''}. It is checked like any other save.` : undefined">
       <template #body>
         <UInput v-model="reason" placeholder="Why (kept in the history)" class="w-full" aria-label="Reason for restoring" />
         <p v-if="question" class="mt-3 text-sm text-warning">

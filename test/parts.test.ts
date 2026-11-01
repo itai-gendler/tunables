@@ -5,8 +5,10 @@ import {
   createTunables,
   defineEnvironment,
   defineGroup,
+  definePresets,
   env,
   memoryStore,
+  number,
   pick,
   renderEnvExample
 } from '../src/index.js'
@@ -45,6 +47,34 @@ describe('deployment values', () => {
     ])
   })
 
+  it('wraps a long description at 80 columns', () => {
+    const app = defineEnvironment({ LONG: env.string({ optional: true, description: 'word '.repeat(40).trim() }) })
+    const lines = renderEnvExample(app).split('\n').filter(line => line.startsWith('# word'))
+    expect(lines.length).toBeGreaterThan(1)
+    expect(lines.every(line => line.length <= 80)).toBe(true)
+  })
+
+  it('reads an optional value as undefined, and never echoes a secret', () => {
+    const app = defineEnvironment({
+      API_KEY: env.string({ description: 'The provider key.', optional: true, secret: true }),
+      PIN: env.integer({ description: 'A secret number.', secret: true, optional: true }),
+      SIGN_IN: env.boolean({ description: 'Password sign-in.', optional: true, example: '1' })
+    })
+    const read: { API_KEY: string | undefined, PIN: number | undefined, SIGN_IN: boolean | undefined } = app.read({})
+    expect(read).toEqual({ API_KEY: undefined, PIN: undefined, SIGN_IN: undefined })
+    expect(() => app.read({ PIN: 'hunter2' })).toThrow('- PIN: must be a number.')
+    expect(() => app.read({ PIN: 'hunter2' })).not.toThrow(/hunter2/)
+    expect(renderEnvExample(app)).toBe(`# The provider key.
+# API_KEY=
+
+# A secret number.
+# PIN=
+
+# Password sign-in.
+SIGN_IN=1
+`)
+  })
+
   it('writes .env.example with every value under its description', () => {
     expect(renderEnvExample(environment, 'The app')).toBe(`# The app
 
@@ -66,6 +96,36 @@ DATABASE_URL=
 # One of: info, warn.
 # LEVEL=info
 `)
+  })
+})
+
+describe('a preset field held at or below a setting', () => {
+  const limits = defineGroup({ id: 'limits', title: 'Limits', fields: { budgetLimit: number({ label: 'Budget limit', unit: 'dollars', integer: false, default: 25 }) } })
+  const plans = definePresets({
+    id: 'plans',
+    title: 'Plans',
+    singular: 'Plan',
+    slots: ['monthly'],
+    fields: { budget: number({ label: 'Budget', unit: 'dollars', integer: false, default: 10, atMost: 'limits.budgetLimit' }) },
+    seed: [{ key: 'basic', slot: 'monthly', label: 'Basic', values: { budget: 20 } }]
+  })
+  const make = () => createTunables({ store: memoryStore(), groups: [limits], presets: [plans] })
+
+  it('refuses a preset above it, and a setting lowered below a preset, naming the preset', async () => {
+    const tunables = make()
+    await tunables.sync({ actor: 'test' })
+    expect((await tunables.presets('plans').create({ key: 'big', slot: 'monthly', label: 'Big', values: { budget: 30 } })).problems)
+      .toEqual([{ key: 'budget', message: 'Budget may not exceed the Budget limit, $25.' }])
+    const lowered = await tunables.save('limits', { budgetLimit: 15 })
+    expect(lowered.saved).toBe(false)
+    expect(lowered.problems).toEqual([{ message: 'Plan "Basic": Budget may not exceed the Budget limit, $15.', preset: { set: 'plans', key: 'basic', label: 'Basic' } }])
+    expect((await tunables.save('limits', { budgetLimit: 20 })).saved).toBe(true)
+  })
+
+  it('describes the setting it is held below, and refuses one that is not a number setting', () => {
+    expect(make().describe().presets[0]!.fields[0]!.atMost).toEqual({ group: 'limits', key: 'budgetLimit', label: 'Budget limit' })
+    const loose = definePresets({ id: 'plans', title: 'Plans', singular: 'Plan', slots: ['monthly'], fields: { budget: number({ unit: 'dollars', default: 1, atMost: 'limits.nothing' }) } })
+    expect(() => createTunables({ store: memoryStore(), groups: [limits], presets: [loose] })).toThrow(/not a number setting/)
   })
 })
 
@@ -119,6 +179,9 @@ describe('Product Model link', () => {
   it('compares defaults by their numbers, or by their words', () => {
     expect(sameDefault('25 dollars', '$25')).toBe(true)
     expect(sameDefault('100,000 characters', '100,000 characters')).toBe(true)
+    expect(sameDefault('1 day', '24 hours')).toBe(true)
+    expect(sameDefault('90 seconds', '1.5 minutes')).toBe(true)
+    expect(sameDefault('1 day', '12 hours')).toBe(false)
     expect(sameDefault('400 by 225 pixels', '400 × 225 pixels')).toBe(true)
     expect(sameDefault('23:00', '23:00')).toBe(true)
     expect(sameDefault('Feeds Briefs read', 'Feeds Briefs read')).toBe(true)

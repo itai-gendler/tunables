@@ -357,7 +357,7 @@ affects (the group's `place`), behind the app's own admin route guard:
 | `TunablesGroupForm` | `group`, `scope?`, `history?` | One group's form by section, with effects, problems, confirmation and history; given a `scope`, only the fields that scope may set, each with what it inherits and from where |
 | `TunablesOverview` | — | All settings: every group, its values, what differs from default, where each is edited |
 | `TunablesPresets` | `set` | A preset set: create, edit, make default, remove |
-| `TunablesAssign` | `set`, `subject`, `slot`, `label?` | Which preset one subject follows for one slot |
+| `TunablesAssign` | `set`, `subject`, `for-slot`, `label?` | Which preset one subject follows for one slot |
 | `TunablesCatalog` | `catalog` | A catalog: add, edit, retire, reinstate, what uses each entry |
 | `TunablesHistory` | `target` (`{ kind, name, id? }`) | Revisions, with restore for groups |
 | `TunablesFieldHint` | `label`, `help?`, `defaultDisplay?` | The question-mark explanation, for the app's own forms |

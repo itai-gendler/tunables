@@ -284,7 +284,7 @@ function session(db: SqlExecutor, schema: string, lockKey: number): StoreSession
         `select id::text as id, target_kind, target_name, target_id, actor, reason, changes, snapshot, created_at
          from ${s}.tunables_revisions
          where target_kind = $1 and target_name = $2 and target_id = $3 and ($4::bigint is null or id < $4::bigint)
-         order by id desc limit $5`,
+         order by tunables_revisions.id desc limit $5`,
         [target.kind, target.name, target.id ?? '', query.before ?? null, query.limit]
       )
       return rows.map(toRevision)

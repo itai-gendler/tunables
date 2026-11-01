@@ -10,6 +10,12 @@ interface ValueInfo {
   description: string
   /** The `.env.example` section it is listed under. */
   section?: string
+  /** May be left unset, with no default: it reads as `undefined`, and the app decides what its absence means. */
+  optional?: boolean
+  /** Holds a credential: tooling never prints its value, and `.env.example` shows only a placeholder `example`. */
+  secret?: boolean
+  /** A value for local development that is not the default, written set in `.env.example`. */
+  example?: string
 }
 
 export interface IntegerValue extends ValueInfo { kind: 'integer', default?: number, min?: number, max?: number }
@@ -20,11 +26,12 @@ export interface ChoiceValue<V extends string = string> extends ValueInfo { kind
 
 export type DeploymentValue = IntegerValue | NumberValue | StringValue | BooleanValue | ChoiceValue
 
-type ValueOf<D> = D extends IntegerValue | NumberValue ? number
+type PlainValueOf<D> = D extends IntegerValue | NumberValue ? number
   : D extends StringValue ? string
     : D extends BooleanValue ? boolean
       : D extends ChoiceValue<infer V> ? V
         : never
+type ValueOf<D> = D extends { optional: true } ? PlainValueOf<D> | undefined : PlainValueOf<D>
 
 export type EnvironmentValues<E extends Record<string, DeploymentValue>> = { readonly [K in keyof E]: ValueOf<E[K]> }
 
@@ -50,14 +57,17 @@ function parseValue(definition: DeploymentValue, raw: string | undefined): { val
   const text = raw?.trim()
   if (text === undefined || text === '') {
     if (definition.default !== undefined) return { value: definition.default }
+    if (definition.optional) return { value: undefined }
     return { problem: 'is required and not set.' }
   }
+  // A secret's value never appears in a problem.
+  const not = definition.secret ? '' : `, not "${text}"`
   switch (definition.kind) {
     case 'integer':
     case 'number': {
       const value = Number(text)
-      if (!Number.isFinite(value)) return { problem: `must be a number, not "${text}".` }
-      if (definition.kind === 'integer' && !Number.isInteger(value)) return { problem: `must be a whole number, not "${text}".` }
+      if (!Number.isFinite(value)) return { problem: `must be a number${not}.` }
+      if (definition.kind === 'integer' && !Number.isInteger(value)) return { problem: `must be a whole number${not}.` }
       const min = definition.min ?? (definition.kind === 'integer' ? 1 : undefined)
       if (min !== undefined && value < min) return { problem: `may not be less than ${min}.` }
       if (definition.max !== undefined && value > definition.max) return { problem: `may not be more than ${definition.max}.` }
@@ -67,10 +77,10 @@ function parseValue(definition: DeploymentValue, raw: string | undefined): { val
     case 'boolean':
       if (/^(1|true|yes|on)$/i.test(text)) return { value: true }
       if (/^(0|false|no|off)$/i.test(text)) return { value: false }
-      return { problem: `must be true or false, not "${text}".` }
+      return { problem: `must be true or false${not}.` }
     case 'choice':
       if ((definition.options as readonly string[]).includes(text)) return { value: text }
-      return { problem: `must be one of ${definition.options.join(', ')}, not "${text}".` }
+      return { problem: `must be one of ${definition.options.join(', ')}${not}.` }
     case 'string':
       return { value: raw }
   }
@@ -109,19 +119,45 @@ export function defineEnvironment<const E extends Record<string, DeploymentValue
   }
 }
 
+/** A description line as comments of at most 80 columns, broken between words. */
+function wrapped(text: string, width = 80): string[] {
+  const lines: string[] = []
+  let line = '#'
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line.length > 1 && line.length + 1 + word.length > width) {
+      lines.push(line)
+      line = '#'
+    }
+    line += ` ${word}`
+  }
+  if (line.length > 1) lines.push(line)
+  return lines
+}
+
+/**
+ * A value's line: set to its `example` when it has one, commented out at its
+ * default, commented out empty when it is optional, and set empty when it must
+ * be given.
+ */
+function exampleLine(name: string, definition: DeploymentValue): string {
+  if (definition.example !== undefined) return `${name}=${definition.example}`
+  if (definition.default !== undefined) return `# ${name}=${String(definition.default)}`
+  return definition.optional ? `# ${name}=` : `${name}=`
+}
+
 /** `.env.example`, listing every deployment value under its description, commented out at its default. */
 export function renderEnvExample(environment: { definitions: Record<string, DeploymentValue> }, header?: string): string {
   const lines: string[] = []
-  if (header) lines.push(...header.trimEnd().split('\n').map(line => line ? `# ${line}` : '#'), '')
+  if (header) lines.push(...header.trimEnd().split('\n').flatMap(line => line ? wrapped(line) : ['#']), '')
   let section: string | undefined
   for (const [name, definition] of Object.entries(environment.definitions)) {
     if (definition.section && definition.section !== section) {
       section = definition.section
       lines.push(`# --- ${section}`, '')
     }
-    for (const line of definition.description.trim().split('\n')) lines.push(`# ${line}`)
+    for (const line of definition.description.trim().split('\n')) lines.push(...wrapped(line))
     if (definition.kind === 'choice') lines.push(`# One of: ${definition.options.join(', ')}.`)
-    lines.push(definition.default === undefined ? `${name}=` : `# ${name}=${String(definition.default)}`, '')
+    lines.push(exampleLine(name, definition), '')
   }
   return `${lines.join('\n').trimEnd()}\n`
 }

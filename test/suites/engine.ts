@@ -76,6 +76,20 @@ describe('definitions', () => {
 })
 
 describe('reading', () => {
+  it('lists a history newest first past ten revisions', async () => {
+    for (let count = 1; count <= 11; count++) await tunables.save('readers', { briefsPerReader: count }, { actor: 'test' })
+    const ids = (await tunables.history('readers', { limit: 50 })).map(revision => Number(revision.id))
+    expect(ids).toEqual([...ids].sort((a, b) => b - a))
+    expect(ids.length).toBeGreaterThan(11)
+  })
+
+  it('reads freshly synced values as unchanged, whatever order the store keeps object keys in', async () => {
+    for (const group of ['collection', 'run', 'readers'] as const) {
+      expect((await tunables.entry(group)).changed).toEqual([])
+    }
+  })
+
+
   it('reads nothing before sync, then the defaults, typed', async () => {
     const unsynced = make(memoryStore())
     await expect(unsynced.get('run')).rejects.toBeInstanceOf(TunablesMissing)
@@ -174,7 +188,7 @@ describe('saving', () => {
 
   it('refuses lowering a limit below a Run Config, naming it', async () => {
     const outcome = await tunables.save('run', { screeningBudgetLimitUsd: 0.2 })
-    expect(outcome.problems).toEqual([{ message: 'Run Config "Weekly brief": its Screening budget, $0.30, is above the Screening budget limit of $0.20.' }])
+    expect(outcome.problems).toEqual([{ message: 'Run Config "Weekly brief": its Screening budget, $0.30, is above the Screening budget limit of $0.20.', preset: { set: 'run-configs', key: 'weekly', label: 'Weekly brief' } }])
     expect((await tunables.save('run', { screeningBudgetLimitUsd: 0.3 })).saved).toBe(true)
   })
 
