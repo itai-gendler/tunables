@@ -49,7 +49,7 @@ export const workspace = defineGroup({
   title: 'Workspace',
   description: 'How a workspace works for everyone in it.',
   entity: 'workspace',
-  place: { label: 'Workspace settings', href: '/workspace' },
+  place: { label: 'Admin › Workspace defaults', href: '/admin/defaults' },
   fields: {
     defaultView: choice({ fact: 'Default view', options: [{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }], default: 'list', affects: ['members'], override: ['workspace', 'user'] }),
     dueSoonDays: number({ fact: 'Due soon', unit: 'days', default: 2, max: 30, affects: ['members'], override: ['workspace', 'user'] }),

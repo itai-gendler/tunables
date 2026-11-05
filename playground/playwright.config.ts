@@ -1,7 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
 /**
- * Every screen, in both themes, photographed and checked for accessibility.
+ * Every screen, in both themes, photographed and checked for accessibility,
+ * and the components the docs show, photographed for them.
  * The playground runs built, on in-memory storage reset before each test, so
  * every run starts from the same seeded state. Baselines are kept per platform:
  * CI photographs in Playwright's Linux image.
@@ -24,7 +25,9 @@ export default defineConfig({
   },
   projects: [
     { name: 'light', use: { ...devices['Desktop Chrome'], viewport: { width: 1360, height: 900 }, colorScheme: 'light' } },
-    { name: 'dark', use: { ...devices['Desktop Chrome'], viewport: { width: 1360, height: 900 }, colorScheme: 'dark' } }
+    { name: 'dark', use: { ...devices['Desktop Chrome'], viewport: { width: 1360, height: 900 }, colorScheme: 'dark' } },
+    // The docs' pictures of each component, sharp on a high-density screen.
+    { name: 'docs', use: { ...devices['Desktop Chrome'], viewport: { width: 1360, height: 900 }, colorScheme: 'light', deviceScaleFactor: 2 } }
   ],
   webServer: {
     command: `pnpm build && PORT=${port} HOST=127.0.0.1 node .output/server/index.mjs`,

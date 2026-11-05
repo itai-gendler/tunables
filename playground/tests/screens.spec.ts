@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test, type BrowserContext, type Page } from '@playwright/test'
+import { expect, test, type BrowserContext, type Locator, type Page } from '@playwright/test'
 
 type Who = 'staff' | 'owner' | 'member'
 
@@ -19,12 +19,46 @@ async function open(page: Page, path: string, ready: string) {
   await page.waitForLoadState('networkidle')
 }
 
+/** The docs project photographs only what the docs show; light and dark check every screen. */
+const forDocs = () => test.info().project.name === 'docs'
+
 /** A page at rest is photographed whole; a dialog over it, as the viewport shows it. */
 async function photograph(page: Page, name: string, options: { dialog?: boolean } = {}) {
+  if (forDocs()) return
   await expect(page).toHaveScreenshot(`${name}.png`, { fullPage: !options.dialog, mask: [page.locator('[data-tunables-time]')] })
 }
 
+/**
+ * A component as the docs show it, at the screen's own density, with its times
+ * hidden: on the page with a margin around it, or a dialog on its own.
+ * `pnpm --dir playground docs:images` copies the Linux baselines into
+ * docs/images, and `pnpm check` keeps the two the same.
+ */
+async function document(locator: Locator, name: string, options: { dialog?: boolean } = {}) {
+  if (!forDocs()) return
+  const page = locator.page()
+  const hide = await page.addStyleTag({ content: '[data-tunables-time] { visibility: hidden }' })
+  try {
+    if (options.dialog) {
+      await expect(locator).toHaveScreenshot(`${name}.png`, { scale: 'device' })
+      return
+    }
+    const margin = 24
+    const box = await locator.evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height }
+    })
+    const x = Math.max(0, box.x - margin)
+    const y = Math.max(0, box.y - margin)
+    const clip = { x, y, width: box.x + box.width + margin - x, height: box.y + box.height + margin - y }
+    await expect(page).toHaveScreenshot(`${name}.png`, { clip, fullPage: true, scale: 'device' })
+  } finally {
+    await hide.evaluate(node => node.remove())
+  }
+}
+
 async function accessible(page: Page) {
+  if (forDocs()) return
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze()
   expect(results.violations.map(violation => `${violation.id}: ${violation.nodes.map(node => node.target.join(' ')).join(', ')}`)).toEqual([])
 }
@@ -33,15 +67,16 @@ async function save(page: Page) {
   await page.getByRole('button', { name: 'Save', exact: true }).click()
 }
 
-const screens: { name: string, who: Who, path: string, ready: string }[] = [
-  { name: 'limits', who: 'staff', path: '/admin/limits', ready: 'Tasks per project' },
+/** Each screen at rest, and the part of it the docs show: a component's own root, or Tasklane's page around it. */
+const screens: { name: string, who: Who, path: string, ready: string, docs?: { name: string, selector: string } }[] = [
+  { name: 'limits', who: 'staff', path: '/admin/limits', ready: 'Tasks per project', docs: { name: 'group-form', selector: '.tunables-group-form' } },
   { name: 'workspace-defaults', who: 'staff', path: '/admin/defaults', ready: 'Archive done tasks after' },
-  { name: 'plans', who: 'staff', path: '/admin/plans', ready: 'Team' },
-  { name: 'workspaces', who: 'staff', path: '/admin/workspaces', ready: 'Hobby club' },
-  { name: 'models', who: 'staff', path: '/admin/models', ready: 'Large and careful' },
-  { name: 'all-settings', who: 'staff', path: '/admin/settings', ready: 'Attachment size' },
+  { name: 'plans', who: 'staff', path: '/admin/plans', ready: 'Team', docs: { name: 'presets', selector: '.tunables-presets' } },
+  { name: 'workspaces', who: 'staff', path: '/admin/workspaces', ready: 'Hobby club', docs: { name: 'assign', selector: 'main' } },
+  { name: 'models', who: 'staff', path: '/admin/models', ready: 'Large and careful', docs: { name: 'catalog', selector: '.tunables-catalog' } },
+  { name: 'all-settings', who: 'staff', path: '/admin/settings', ready: 'Attachment size', docs: { name: 'overview', selector: '.tunables-overview' } },
   { name: 'workspace-settings', who: 'owner', path: '/workspace', ready: 'Inherited from System' },
-  { name: 'my-settings', who: 'member', path: '/me', ready: 'Reminder time' }
+  { name: 'my-tasks', who: 'member', path: '/me', ready: 'Daily reminder', docs: { name: 'own-screen', selector: 'main' } }
 ]
 
 for (const screen of screens) {
@@ -50,6 +85,7 @@ for (const screen of screens) {
     await open(page, screen.path, screen.ready)
     await accessible(page)
     await photograph(page, screen.name)
+    if (screen.docs) await document(page.locator(screen.docs.selector), screen.docs.name)
   })
 }
 
@@ -76,6 +112,7 @@ test.describe('a workspace owner', () => {
     await expect(page.locator('[data-field="maxProjects"]')).toContainText('Set here · inherits 50 from Pro plan')
     await accessible(page)
     await photograph(page, 'workspace-limits-overridden')
+    await document(page.locator('.tunables-group-form').filter({ visible: true }), 'group-form-at-a-scope')
 
     await page.getByRole('button', { name: 'Use 50 from Pro plan' }).click()
     await save(page)
@@ -84,7 +121,7 @@ test.describe('a workspace owner', () => {
     await expect(page.locator('[data-field="maxProjects"]')).toContainText('Inherited from Pro plan')
   })
 
-  test('confirms turning on guests, and finds the change in Acme\'s history', async ({ page }) => {
+  test('confirms turning on guests, finds the change in Acme\'s history, and restores it', async ({ page }) => {
     await open(page, '/workspace', 'Inherited from System')
     await page.getByRole('switch', { name: 'Guests' }).click()
     await page.getByRole('textbox', { name: 'Reason for this change' }).first().fill('Working with an agency')
@@ -92,54 +129,73 @@ test.describe('a workspace owner', () => {
     const dialog = page.getByRole('dialog', { name: 'Confirm this change' })
     await expect(dialog).toContainText('Guests will see every task')
     await photograph(page, 'workspace-confirm', { dialog: true })
+    await document(dialog, 'group-form-confirm', { dialog: true })
     await dialog.getByRole('button', { name: 'Save anyway' }).click()
+    await expect(page.getByRole('status')).toContainText('Saved')
+
+    const dueSoon = page.getByRole('spinbutton', { name: 'Due soon' })
+    await dueSoon.fill('3')
+    await dueSoon.blur()
+    await save(page)
     await expect(page.getByRole('status')).toContainText('Saved')
     await page.getByRole('button', { name: 'History' }).first().click()
     const history = page.getByRole('dialog', { name: 'Workspace history' })
     await expect(history).toContainText('Working with an agency')
     await expect(history).toContainText('Olivia')
+    await document(history.locator('.tunables-history'), 'history', { dialog: true })
+    await history.getByRole('button', { name: 'Restore' }).first().click()
+    const confirm = page.getByRole('dialog', { name: 'Restore this revision' })
+    await confirm.getByRole('textbox').fill('Two days was right')
+    await confirm.getByRole('button', { name: 'Restore' }).click()
+    await expect(history).toContainText('Two days was right')
+    await page.keyboard.press('Escape')
+    await expect(dueSoon).toHaveValue('2')
   })
 
-  test('cannot open the administration', async ({ page }) => {
+  test('is sent home from the administration, which its API refuses too', async ({ page }) => {
     await page.goto('/admin/limits')
-    await expect(page.getByText('Not found.')).toBeVisible()
-    await expect(page.getByText('Tasks per project')).toHaveCount(0)
+    await expect(page).toHaveURL(/\/workspace$/)
+    expect((await page.request.get('/api/tunables/groups/limits')).status()).toBe(404)
   })
 })
 
 test.describe('a member', () => {
   test.beforeEach(async ({ context, baseURL }) => signIn(context, baseURL!, 'member'))
 
-  test('sets their own view over Acme\'s, and restores an earlier one', async ({ page }) => {
+  test('picks their own view and week over Acme\'s on Tasklane\'s own page, and follows Acme\'s again', async ({ page }) => {
     await page.request.put('/api/tunables/groups/workspace', { headers: { cookie: 'playground-who=owner' }, data: { values: { defaultView: 'board' }, scope: { workspace: 'acme' } } })
-    await open(page, '/me', 'Reminder time')
-    const field = page.locator('[data-field="defaultView"]')
-    await expect(field).toContainText('Inherited from Acme')
-    await field.getByRole('radio', { name: 'Calendar' }).click()
-    await save(page)
-    await expect(page.getByRole('status')).toContainText('Saved')
-    await expect(field).toContainText('Set here · inherits Board from Acme')
+    await open(page, '/me', 'Daily reminder')
+    const view = page.locator('[data-preference="defaultView"]')
+    await expect(page.getByRole('tab', { name: 'Board' })).toHaveAttribute('aria-selected', 'true')
+    await expect(view).toContainText('Same as Acme')
 
-    await field.getByRole('radio', { name: 'List' }).click()
-    await save(page)
+    await page.getByRole('tab', { name: 'Calendar' }).click()
     await expect(page.getByRole('status')).toContainText('Saved')
-    await page.getByRole('button', { name: 'History' }).first().click()
-    await page.getByRole('button', { name: 'Restore' }).first().click()
-    const confirm = page.getByRole('dialog', { name: 'Restore this revision' })
-    await confirm.getByRole('textbox').fill('Calendar suits me')
-    await confirm.getByRole('button', { name: 'Restore' }).click()
-    await expect(page.getByRole('dialog', { name: 'Workspace history' })).toContainText('Calendar suits me')
-    await page.keyboard.press('Escape')
-    await expect(field.getByRole('radio', { name: 'Calendar' })).toBeChecked()
+    await expect(view).toContainText('Your own')
+    await page.getByRole('combobox', { name: 'Week starts on' }).click()
+    await page.getByRole('option', { name: 'Sunday' }).click()
+    await expect(page.getByRole('list', { name: 'This week' }).getByRole('listitem').first()).toContainText('Sun')
+
+    await page.reload()
+    await expect(page.getByRole('tab', { name: 'Calendar' })).toHaveAttribute('aria-selected', 'true')
+    await page.getByRole('button', { name: 'Use Acme\'s (Board)' }).click()
+    await expect(page.getByRole('tab', { name: 'Board' })).toHaveAttribute('aria-selected', 'true')
+    await expect(view).toContainText('Same as Acme')
   })
 
-  test('cannot open the workspace\'s settings', async ({ page }) => {
+  test('is sent home from the workspace\'s settings, which its API refuses too', async ({ page }) => {
     await page.goto('/workspace')
-    await expect(page.getByText('Not found.').first()).toBeVisible()
+    await expect(page).toHaveURL(/\/me$/)
+    expect((await page.request.get('/api/tunables/groups/workspace?scope=workspace%3Dacme')).status()).toBe(404)
   })
 })
 
 test.describe('Tasklane staff', () => {
+  test('is sent from a workspace\'s own page to the administration', async ({ page }) => {
+    await page.goto('/workspace')
+    await expect(page).toHaveURL(/\/admin\/limits$/)
+  })
+
   test('cannot lower a plan below what a workspace on it keeps', async ({ page }) => {
     await page.request.put('/api/tunables/groups/limits', { headers: { cookie: 'playground-who=owner' }, data: { values: { maxProjects: 20 }, scope: { workspace: 'acme' } } })
     await open(page, '/admin/plans', 'Team')

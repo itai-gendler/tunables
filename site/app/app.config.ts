@@ -35,6 +35,13 @@ export default defineAppConfig({
           base: 'content-table border-collapse rounded-none'
         }
       },
+      img: {
+        // The docs' pictures of the screens are white on white; a frame sets
+        // each apart from the page.
+        slots: {
+          base: 'rounded-md border border-default'
+        }
+      },
       pre: {
         // Scroll long lines instead of wrapping them: code and `.env.example`
         // read by their columns, the way GitHub shows the same files.
