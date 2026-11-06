@@ -7,13 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-11-06
+
 ### Added
 
-- Docs: a picture of each screen as it renders, and an example of a product's own screen built on the Vue composables.
+- Docs: a picture of each screen as it renders, and an example of a product's own screen built on the Vue composables. ([#2](https://github.com/itai-gendler/tunables/pull/2)) ([87a1c49](https://github.com/itai-gendler/tunables/commit/87a1c49d83519b5f49a8cf69b8eb24d22d13b240))
 
 ### Fixed
 
-- A workspace's or person's form no longer asks for a catalog it does not show.
+- A workspace's or person's form no longer asks for a catalog it does not show. ([#2](https://github.com/itai-gendler/tunables/pull/2)) ([87a1c49](https://github.com/itai-gendler/tunables/commit/87a1c49d83519b5f49a8cf69b8eb24d22d13b240))
+
+### Contributors
+
+- [@itai-gendler](https://github.com/itai-gendler)
+
+**Full Changelog**: [v0.3.0...v0.3.1][0.3.1]
 
 ## [0.3.0] - 2026-11-01
 
@@ -94,7 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Full Changelog**: [v0.1.0][0.1.0]
 
-[Unreleased]: https://github.com/itai-gendler/tunables/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/itai-gendler/tunables/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/itai-gendler/tunables/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/itai-gendler/tunables/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/itai-gendler/tunables/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/itai-gendler/tunables/releases/tag/v0.1.0
