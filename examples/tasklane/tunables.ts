@@ -45,7 +45,7 @@ export const workspace = defineGroup({
   id: 'workspace',
   title: 'Workspace',
   description: 'How a workspace works for everyone in it. Its owner sets these for the workspace; each person may set their own view and week.',
-  place: { label: 'Workspace settings', href: '/workspace' },
+  place: { label: 'Admin › Workspace defaults', href: '/admin/defaults' },
   fields: {
     defaultView: choice({ label: 'Default view', options: [{ value: 'list', label: 'List' }, { value: 'board', label: 'Board' }, { value: 'calendar', label: 'Calendar' }], default: 'list', affects: ['members'], override: ['workspace', 'user'], help: 'How a project opens.' }),
     weekStartsOn: number({ label: 'Week starts on', unit: 'weekday', default: 1, affects: ['members'], override: ['workspace', 'user'], help: 'The first day of the week in calendars and due dates.' }),

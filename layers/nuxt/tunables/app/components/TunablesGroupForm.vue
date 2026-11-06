@@ -29,7 +29,8 @@ useTunablesLeaveGuard(form.dirty)
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 const sections = computed(() => {
   const described = form.group.value
-  if (!described) return []
+  // Until the entry arrives, which fields a scope may set is unknown.
+  if (!described || !form.entry.value) return []
   const layers = form.entry.value?.layers
   const group = layers ? { ...described, fields: described.fields.filter(field => field.key in layers) } : described
   const named = group.sections.map(name => ({ name, anchor: `tunables-${group.id}-${slug(name)}`, fields: group.fields.filter(field => field.section === name) }))

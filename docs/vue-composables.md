@@ -122,6 +122,26 @@ const form = useGroupForm('limits', { scope: { workspace: 'acme' } })
 this scope sets its own (`overridden`), and its bound (`rule`: `free`,
 `at-most` or `at-least`).
 
+A form need not look like one. Tasklane's *My tasks* page keeps a member's
+view and week with its own controls, saving each choice as it is made:
+
+```ts
+const form = useGroupForm('workspace', { scope: { workspace: 'acme', user: 'dana' } })
+
+async function choose(key: string, value: unknown) {
+  form.draft[key] = value
+  form.setHere(key)
+  await form.save()
+}
+
+async function follow(key: string) {
+  form.useInherited(key)
+  await form.save()
+}
+```
+
+![Tasklane's My tasks: List, Board and Calendar tabs that keep the person's view, and their own week start, due-soon days and reminder, each saying whether it is their own or the same as Tasklane's](./images/own-screen.png)
+
 ## The others
 
 | Composable | Gives |

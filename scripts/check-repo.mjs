@@ -3,7 +3,8 @@
  * The repository's own consistency checks, run on every commit and in CI:
  * required files, one package manager, versions that agree, a well-formed
  * changelog, skills that match the plugin, docs frontmatter the site reads,
- * local links that resolve, and Business Rules cited in code that exist.
+ * local links that resolve, docs screenshots that match the playground's, and
+ * Business Rules cited in code that exist.
  */
 import { readFile, readdir, access } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
@@ -161,6 +162,20 @@ for (const file of ['README.md', 'AGENTS.md', 'CONTRIBUTING.md', ...docFiles.map
       const line = source.slice(0, match.index).split('\n').length
       errors.push(`${file}:${line} links to missing local file "${href}"`)
     }
+  }
+}
+
+// The docs' screenshots are the playground's Linux baselines of each component,
+// copied by `pnpm --dir playground docs:images`, so a screen change cannot leave
+// an old picture in the docs.
+const shots = 'playground/tests/__screenshots__/linux/docs'
+const docImages = (await readdir(resolve(root, 'docs/images')).catch(() => [])).filter(name => name.endsWith('.png')).sort()
+const baselines = (await readdir(resolve(root, shots)).catch(() => [])).filter(name => name.endsWith('.png')).sort()
+for (const name of new Set([...docImages, ...baselines])) {
+  const image = await readFile(resolve(root, 'docs/images', name)).catch(() => null)
+  const baseline = await readFile(resolve(root, shots, name)).catch(() => null)
+  if (!image || !baseline || !image.equals(baseline)) {
+    errors.push(`docs/images/${name} differs from ${shots}/${name}; run \`pnpm --dir playground docs:images\``)
   }
 }
 

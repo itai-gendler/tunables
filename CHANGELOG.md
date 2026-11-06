@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Docs: a picture of each screen as it renders, and an example of a product's own screen built on the Vue composables.
+
+### Fixed
+
+- A workspace's or person's form no longer asks for a catalog it does not show.
+
 ## [0.3.0] - 2026-11-01
 
 ### Added

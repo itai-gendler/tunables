@@ -97,6 +97,10 @@ a cited rule is not in the Product Model.
   the macOS one): `pnpm install --frozen-lockfile`, then
   `npx playwright test --update-snapshots=all` in `playground/`, and copy
   `tests/__screenshots__/linux` back. Commit both with the change.
+- The docs' pictures of the screens are the Linux baselines under
+  `playground/tests/__screenshots__/linux/docs`; after regenerating them,
+  `pnpm --dir playground docs:images` copies them into `docs/images`, and
+  `pnpm check` fails while the two differ.
 - The site: `pnpm --dir site dev`. How tunables.dev is deployed, and the
   Cloudflare setup behind it, is in [site/docs/deployment.md](site/docs/deployment.md).
 

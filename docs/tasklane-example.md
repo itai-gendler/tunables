@@ -113,7 +113,7 @@ sets their reminder time; only staff choose the model.
 export const workspace = defineGroup({
   id: 'workspace',
   title: 'Workspace',
-  place: { label: 'Workspace settings', href: '/workspace' },
+  place: { label: 'Admin › Workspace defaults', href: '/admin/defaults' },
   fields: {
     defaultView: choice({ label: 'Default view', options: [/* list, board, calendar */], default: 'list', override: ['workspace', 'user'] }),
     weekStartsOn: number({ label: 'Week starts on', unit: 'weekday', default: 1, override: ['workspace', 'user'] }),
@@ -182,18 +182,19 @@ starts on* reads Monday until Acme or Dana sets another day.
 ## The playground
 
 The repository's `playground/` is Tasklane as a Nuxt app. It nests tunables in
-its own oRPC router, puts the layer's components on Tasklane's pages, and
-starts with Acme on Pro and Hobby club on the default plan. A switcher in the
-header signs in as one of three people:
+its own oRPC router, puts the layer's components on Tasklane's administration
+and settings pages, and starts with Acme on Pro and Hobby club on the default
+plan. A switcher in the header signs in as one of three people:
 
 | Who | Sees |
 | --- | --- |
 | Sam, Tasklane staff | `/admin/limits`, `/admin/defaults` (Workspace for the system), `/admin/plans`, `/admin/workspaces` (each workspace's plan), `/admin/models`, `/admin/settings` (All settings) |
-| Olivia, owns Acme | `/workspace`: Workspace and Limits at `{ workspace: 'acme' }` |
-| Dana, member of Acme | `/me`: her own Workspace preferences and AI suggestions at `{ workspace: 'acme', user: 'dana' }` |
+| Olivia, owns Acme | `/workspace`: Workspace and Limits at `{ workspace: 'acme' }`, on the layer's form |
+| Dana, member of Acme | `/me`: My tasks, Tasklane's own page on `useGroupForm` at `{ workspace: 'acme', user: 'dana' }`, where she picks her view and week |
 
-Its `authorize` lets Sam do anything, and each of the others only their own
-scope; see [Who can do what](./access.md). From a checkout:
+A route guard of Tasklane's own sends each person home from anyone else's
+pages, and its `authorize` lets Sam do anything, and each of the others only
+their own scope; see [Who can do what](./access.md). From a checkout:
 
 ```bash
 pnpm install

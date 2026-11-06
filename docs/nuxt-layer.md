@@ -11,6 +11,15 @@ order: 16
 on Nuxt UI. Extend it, and its components are available on every page of your
 app, in your app's own theme.
 
+They are made for the pages where someone administers values: your staff's
+administration, and a customer's own settings page, such as a workspace's.
+Inside your product, where a person picks a view or a week while they work,
+build the control your product needs on the [Vue composables](./vue-composables.md)
+instead; see [Your own screens](#your-own-screens).
+
+The pictures on this page are the components as they render in
+[Tasklane](./tasklane-example.md#the-playground), in Nuxt UI's default theme.
+
 ```ts [nuxt.config.ts]
 export default defineNuxtConfig({
   extends: ['tunables/nuxt'],
@@ -27,8 +36,9 @@ to see the layer's components to generate their classes; see
 
 Put each group's form on the page beside what it affects, not on one settings
 page: limits on the admin's Limits page, a workspace's own settings on that
-workspace's settings page. A group's `place` names that page, so All settings
-can link to it. The screens never decide who may see them: guard each page
+workspace's settings page. A group's `place` names the page that edits its
+system value, because All settings shows system values and links each group
+there. The screens never decide who may see them: guard each page
 with your own route middleware, and the API with `authorize`.
 
 ## The components
@@ -59,6 +69,8 @@ field has an address, `#tunables-<key>`, and each section of a group
 </template>
 ```
 
+![The Limits form: each field with its explanation, what it affects, its input and its default, and a History button](./images/group-form.png)
+
 One group, edited as a whole:
 
 - every field under its section, with a section menu when there are several;
@@ -70,6 +82,9 @@ One group, edited as a whole:
   Discard and Save;
 - each problem beside the field it is about, and the rest above the form;
 - a dialog for a change that asks to be [confirmed](./checks-and-guards.md#confirmations-for-costly-changes);
+
+  ![A dialog: Confirm this change. Guests will see every task in the project they are invited to. Keep editing, or Save anyway](./images/group-form-confirm.png)
+
 - the group's history in a side panel, with restore. Pass `:history="false"`
   to leave it out.
 
@@ -83,6 +98,8 @@ Given a `scope`, the form edits that [scope](./scopes.md)'s own values:
   <TunablesGroupForm group="limits" :scope="{ workspace: 'acme' }" />
 </template>
 ```
+
+![Acme's Limits: Projects set here to 20, inheriting 50 from the Pro plan, at most 50; the other limits inherited from Pro plan](./images/group-form-at-a-scope.png)
 
 - a badge beside the title names the scope, as your `scopeLabel` reads it;
 - only the fields that scope may set are shown, or a line saying it may set
@@ -104,6 +121,8 @@ description; see [Who can do what](./access.md#self-service-per-scope).
 </template>
 ```
 
+![All settings: a search box, a filter by what a setting affects, and a table of every setting with its value, default, what it affects and a link to where it is edited](./images/overview.png)
+
 All settings on one page: every field of every group, its value beside its
 default, what it affects, and a link to where it is edited. Find a setting by
 name, filter by what it affects, or show only what differs from the defaults.
@@ -114,6 +133,8 @@ It is read-only; changes happen on each group's own form.
 ```vue
 <TunablesHistory :target="{ kind: 'preset', name: 'plans', id: 'pro' }" />
 ```
+
+![Two revisions by Olivia, newest first: Due soon set to 3 days; Guests turned on, with the reason "Working with an agency" and a Restore button](./images/history.png)
 
 Revisions newest first, a page at a time: who, when, why, and each value
 before and after, as it reads. A group's revisions can be restored, through
@@ -126,6 +147,8 @@ the same checks as a save. It emits `restored`.
   <TunablesPresets set="plans" />
 </template>
 ```
+
+![Plans: Free, the default, Pro with one workspace on it, and Team, each with Edit and its history; Pro and Team may be made the default or removed; a New Plan button](./images/presets.png)
 
 A preset set by slot: each preset, which is the default, how many subjects are
 assigned it, and its history; create, edit, make default and remove.
@@ -153,6 +176,8 @@ row in the admin's list of workspaces:
 <TunablesAssign set="plans" :subject="workspace.id" for-slot="plan" label="Plan" />
 ```
 
+![Tasklane's own list of workspaces, with a Plan select from TunablesAssign on each row: Acme on Pro, Hobby club following the default (Free)](./images/assign.png)
+
 It offers *Follow the default* and every preset in the slot, and emits
 `changed` with the key chosen, or `null` for the default. Each assignment is a
 revision of that subject; show them with
@@ -165,6 +190,8 @@ revision of that subject; show them with
   <TunablesCatalog catalog="models" />
 </template>
 ```
+
+![Models: Large and careful, and Small and quick, used by Workspace › Suggestion model, so its Retire is disabled; each with Edit and its history; an Add model button](./images/catalog.png)
 
 Every entry with its state, its values and what uses it; add, edit, retire and
 reinstate. An entry in use cannot be retired, and the screen says by what. The
@@ -216,5 +243,13 @@ between: `pnpm --dir playground dev`.
 ## Your own screens
 
 The components are built on the [Vue composables](./vue-composables.md). When a
-screen needs to look different, build it on those, and keep
-`TunablesFieldHint` for the explanation beside each label.
+screen belongs to your product rather than to its administration, build it on
+those. Tasklane's members never see a settings form: they pick their view
+where their tasks are, and their week beside them, each saved at their own
+scope as they choose it.
+
+![Tasklane's My tasks: the tasks as a list, with List, Board and Calendar tabs that keep the person's view, and their own week start, due-soon days and reminder, each saying whether it is their own or the same as Tasklane's](./images/own-screen.png)
+
+That page is `useGroupForm` at the person's scope, with Tasklane's own
+controls; see [At a scope](./vue-composables.md#at-a-scope). Keep
+`TunablesFieldHint` for the explanation beside a label when you show one.

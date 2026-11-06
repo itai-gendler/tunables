@@ -1,8 +1,7 @@
 <script setup lang="ts">
-type Who = 'staff' | 'owner' | 'member'
-const who = useCookie<Who>('playground-who', { default: () => 'staff' })
+const who = usePlaygroundWho()
 
-/** Each person sees what Tasklane would show them: staff the administration, an owner their workspace, a member their own settings. */
+/** Each person sees what Tasklane would show them: staff the administration, an owner their workspace, a member their own tasks. */
 const navs: Record<Who, { label: string, children: { label: string, to: string }[] }[]> = {
   staff: [
     { label: 'Workspaces', children: [{ label: 'Workspaces', to: '/admin/workspaces' }, { label: 'Plans', to: '/admin/plans' }, { label: 'Limits', to: '/admin/limits' }] },
@@ -10,7 +9,7 @@ const navs: Record<Who, { label: string, children: { label: string, to: string }
     { label: 'All settings', children: [{ label: 'All settings', to: '/admin/settings' }] }
   ],
   owner: [{ label: 'Acme', children: [{ label: 'Workspace settings', to: '/workspace' }] }],
-  member: [{ label: 'Acme', children: [{ label: 'My settings', to: '/me' }] }]
+  member: [{ label: 'Acme', children: [{ label: 'My tasks', to: '/me' }] }]
 }
 const nav = computed(() => navs[who.value] ?? navs.staff)
 const people = [
@@ -20,7 +19,7 @@ const people = [
 ]
 async function switchTo(value: Who) {
   who.value = value
-  await navigateTo(value === 'owner' ? '/workspace' : value === 'member' ? '/me' : '/admin/limits')
+  await navigateTo(homeOf(value))
   reloadNuxtApp()
 }
 </script>

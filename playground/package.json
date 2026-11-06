@@ -9,7 +9,8 @@
     "preview": "nuxt preview",
     "typecheck": "nuxt typecheck",
     "screenshots": "playwright test",
-    "screenshots:update": "playwright test --update-snapshots"
+    "screenshots:update": "playwright test --update-snapshots",
+    "docs:images": "mkdir -p ../docs/images && cp tests/__screenshots__/linux/docs/*.png ../docs/images/"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.114",
